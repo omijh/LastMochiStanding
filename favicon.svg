@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff1f5" />
+      <stop offset="100%" stop-color="#fef3c7" />
+    </linearGradient>
+    <linearGradient id="mochi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="65%" stop-color="#ffe4e6" />
+      <stop offset="100%" stop-color="#fbcfe8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Patisserie badge background -->
+  <rect x="3" y="3" width="58" height="58" rx="16" fill="url(#bg)" stroke="#ec4899" stroke-width="4" />
+
+  <!-- Green bamboo leaf underneath -->
+  <path d="M10 49 Q32 41 54 49 Q32 57 10 49 Z" fill="#22c55e" stroke="#15803d" stroke-width="2.2" stroke-linejoin="round" />
+
+  <!-- Plump pinched Daifuku Mochi body -->
+  <path
+    d="M15 47 C9 42 10 26 25 22 Q32 19 39 22 C54 26 55 42 49 47 Q32 52 15 47 Z"
+    fill="url(#mochi)"
+    stroke="#ec4899"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+
+  <!-- Soft specular glaze highlight -->
+  <path d="M18 32 Q21 26 27 26" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Happy squinting arc eyes (^ ^) -->
+  <path d="M20 35 Q23.5 30 27 35" fill="none" stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+  <path d="M37 35 Q40.5 30 44 35" fill="none" stroke="#1e293b" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Rosy blush cheeks -->
+  <rect x="15" y="37" width="7" height="4" rx="2" fill="#fb7185" opacity="0.65" />
+  <rect x="42" y="37" width="7" height="4" rx="2" fill="#fb7185" opacity="0.65" />
+
+  <!-- Cheerful open smile -->
+  <path d="M27.5 38.5 L36.5 38.5 A4.5 4.5 0 0 1 27.5 38.5 Z" fill="#f43f5e" stroke="#1e293b" stroke-width="1.8" stroke-linejoin="round" />
+
+  <!-- Golden Victory Crown -->
+  <path
+    d="M20 21 L18 10 L26 15 L32 7 L38 15 L46 10 L44 21 Z"
+    fill="#facc15"
+    stroke="#b45309"
+    stroke-width="2.4"
+    stroke-linejoin="round"
+  />
+  <polygon points="32,14 34.8,17 32,20 29.2,17" fill="#f43f5e" />
+</svg>

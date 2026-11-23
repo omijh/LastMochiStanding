@@ -58,6 +58,7 @@ function slotModeColor(mode, charColor) {
 function applyLanguageUI() {
   const tr = t();
   document.documentElement.lang = currentLang;
+  document.title = `${tr.title} 🍡`;
   document.getElementById('lobby-title').textContent = tr.title;
   document.getElementById('lobby-subtitle').textContent = tr.subtitle;
   document.getElementById('howto-step1-title').textContent = tr.howStep1Title;
