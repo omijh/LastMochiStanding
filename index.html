@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Last Mochi Standing — Puff, Dash &amp; Bowl Café Brawler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hud-bar">
+      <div class="hud-players" id="hud-players"></div>
+
+      <div class="hud-center">
+        <span class="round-badge" id="round-badge">R1</span>
+        <span class="timer-pill" id="hud-timer">1:30</span>
+      </div>
+
+      <div class="hud-controls">
+        <button class="hud-btn" type="button" id="lang-btn" title="Switch language">EN / 日本語</button>
+        <button class="hud-btn" type="button" id="music-btn" title="Music (B)">🎵</button>
+        <button class="hud-btn" type="button" id="mute-btn" title="Mute (M)">🔊</button>
+        <button class="hud-btn" type="button" id="pause-btn" title="Pause (P)">⏸️</button>
+        <button class="hud-btn" type="button" id="lobby-btn" title="Lobby">🏠</button>
+      </div>
+    </header>
+
+    <main class="arena-stage">
+      <div class="event-banner" id="event-banner" hidden></div>
+      <div class="arena-frame">
+        <canvas id="game-canvas" width="728" height="616"></canvas>
+      </div>
+      <div class="coach-bar" id="coach-bar">
+        <span class="coach-keys" id="coach-keys">WASD/Arrows: Move · Space/Enter: Snack · Shift/E: Dash</span>
+        <span class="coach-hint" id="live-hint-text"></span>
+      </div>
+    </main>
+  </div>
+
+  <!-- Lobby Overlay -->
+  <div class="overlay" id="lobby-overlay">
+    <div class="modal lobby-modal">
+      <div class="modal-top">
+        <div class="brand-badge">🍡</div>
+        <div>
+          <h1 id="lobby-title">Last Mochi Standing</h1>
+          <p class="subtitle" id="lobby-subtitle">Puff, Dash &amp; Bowl Café Brawler · 2–4 Players + Bots</p>
+        </div>
+        <button class="pill-btn lang-pill" type="button" id="lobby-lang-btn">EN / 日本語</button>
+      </div>
+
+      <div class="howto-strip" id="howto-strip">
+        <div class="howto-step">
+          <span class="howto-icon">🧁</span>
+          <div>
+            <div class="howto-title" id="howto-step1-title">1. Splash Rivals</div>
+            <div class="howto-desc" id="howto-step1-desc">Press Space/Enter to launch unique snacks. Your own splash never puffs you!</div>
+          </div>
+        </div>
+        <div class="howto-step">
+          <span class="howto-icon">🍡</span>
+          <div>
+            <div class="howto-title" id="howto-step2-title">2. Puff into Mochi</div>
+            <div class="howto-desc" id="howto-step2-desc">Rivals puff into squishy Mochi Balls for 4s — tap Space to wiggle free!</div>
+          </div>
+        </div>
+        <div class="howto-step">
+          <span class="howto-icon">🎳</span>
+          <div>
+            <div class="howto-title" id="howto-step3-title">3. Dash &amp; Bowl KO!</div>
+            <div class="howto-desc" id="howto-step3-desc">Bump or Belly-Dash (Shift/E) into puffed Mochi Balls to bowl them into walls!</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slots-grid" id="slots-grid"></div>
+
+      <div class="lobby-footer">
+        <div class="best-of-group">
+          <span class="best-of-label" id="best-of-label">Match Length:</span>
+          <button class="choice-btn active" type="button" data-best="3" id="best-of-3">First to 2 👑</button>
+          <button class="choice-btn" type="button" data-best="5" id="best-of-5">First to 3 👑</button>
+        </div>
+        <button class="primary-btn" type="button" id="start-btn">Start Match!</button>
+      </div>
+      <div class="error-note" id="lobby-error" hidden></div>
+    </div>
+  </div>
+
+  <!-- Pause Overlay -->
+  <div class="overlay" id="pause-overlay" hidden>
+    <div class="modal small-modal">
+      <h2 id="paused-title">Coffee Break! ☕</h2>
+      <p id="paused-sub">Press P or click Resume to jump back in.</p>
+      <div class="modal-actions">
+        <button class="primary-btn" type="button" id="resume-btn">Resume</button>
+        <button class="secondary-btn" type="button" id="pause-lobby-btn">Back to Lobby</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Round / Match Result Overlay -->
+  <div class="overlay" id="result-overlay" hidden>
+    <div class="modal result-modal">
+      <div class="result-badge" id="result-badge">👑</div>
+      <h2 id="result-title">Round Winner!</h2>
+      <p class="result-sub" id="result-sub"></p>
+      <div class="scoreboard" id="result-scoreboard"></div>
+      <div class="awards-section" id="awards-section" hidden>
+        <h3 id="awards-title">Office Awards</h3>
+        <div class="awards-grid" id="awards-grid"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="primary-btn" type="button" id="next-round-btn">Next Round</button>
+        <button class="secondary-btn" type="button" id="result-lobby-btn">Back to Lobby</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
