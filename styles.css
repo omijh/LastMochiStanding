@@ -405,7 +405,7 @@ body {
 
 .slot-portrait-canvas {
   display: block;
-  border-radius: 50%;
+  border-radius: 16px;
 }
 
 .char-swap-btn {

@@ -185,6 +185,8 @@ export class GameEngine {
         dashCooldown: 0,
         bombCooldown: 0,
         wiggleCooldown: 0,
+        prevWiggleDx: 0,
+        prevWiggleDy: 0,
         botSnackTimer: 0,
         dashTimer: 0,
         dashVx: 0,
@@ -490,57 +492,60 @@ export class GameEngine {
     if (this.paused || this.roundResultReady) return;
 
     this.elapsed += dt;
-    const humansAllGhosts =
-      this.humanSlotCount > 0 &&
-      this.players.filter((p) => p.controlType === 'human').every((p) => p.state === 'ghost') &&
-      this.players.filter((p) => p.controlType !== 'human' && p.state !== 'ghost').length >= 2;
-    const timeMult = humansAllGhosts && this.timeLeft > SUDDEN_DEATH_AT ? 1.8 : 1;
-    this.timeLeft = Math.max(0, this.timeLeft - dt * timeMult);
-    if (this.botBombGapTimer > 0) this.botBombGapTimer = Math.max(0, this.botBombGapTimer - dt);
+    if (this.roundResolveTimer < 0) {
+      const humansAllGhosts =
+        this.humanSlotCount > 0 &&
+        this.players.filter((p) => p.controlType === 'human').every((p) => p.state === 'ghost') &&
+        this.players.filter((p) => p.controlType !== 'human' && p.state !== 'ghost').length >= 2;
+      const timeMult = humansAllGhosts && this.timeLeft > SUDDEN_DEATH_AT ? 1.8 : 1;
+      this.timeLeft = Math.max(0, this.timeLeft - dt * timeMult);
+      if (this.botBombGapTimer > 0) this.botBombGapTimer = Math.max(0, this.botBombGapTimer - dt);
+
+      // Center Golden Steamer event
+      this.updateSteamer(dt);
+
+      // Trigger Kaiten-Zushi Belt event mid-round
+      if (!this.kaitenTriggered && this.timeLeft <= KAITEN_START_AT) {
+        this.kaitenTriggered = true;
+        this.kaitenTimer = KAITEN_DURATION;
+        this.sound?.playEventBell();
+        this.showBanner(
+          this.lang === 'ja'
+            ? '🍣 回転ずしタイム！4列目と8列目が動くよ！'
+            : '🍣 KAITEN-ZUSHI BELT! Rows 4 & 8 are moving!',
+          4.5
+        );
+      }
+
+      // Trigger Sudden Death inward spiral crates
+      if (!this.suddenStarted && this.timeLeft <= SUDDEN_DEATH_AT) {
+        this.suddenStarted = true;
+        this.suddenTickTimer = 0.25;
+        this.sound?.playEventBell();
+        this.showBanner(
+          this.lang === 'ja'
+            ? '📦 閉店タイム！お菓子箱が降ってくる！'
+            : '📦 CLOSING TIME! Pastry crates falling!',
+          4.5
+        );
+      }
+
+      if (this.suddenStarted && this.suddenIndex < SPIRAL_COORDS.length) {
+        this.suddenTickTimer -= dt;
+        if (this.suddenTickTimer <= 0) {
+          this.suddenTickTimer = humansAllGhosts ? 0.38 : 0.62;
+          this.advanceSuddenDeath();
+        }
+      }
+    }
+
     if (this.screenShake > 0) this.screenShake = Math.max(0, this.screenShake - dt * 28);
     if (this.bannerTimer > 0) {
       this.bannerTimer -= dt;
       if (this.bannerTimer <= 0) this.activeBanner = null;
     }
-
-    // Center Golden Steamer event
-    this.updateSteamer(dt);
-
-    // Trigger Kaiten-Zushi Belt event mid-round
-    if (!this.kaitenTriggered && this.timeLeft <= KAITEN_START_AT) {
-      this.kaitenTriggered = true;
-      this.kaitenTimer = KAITEN_DURATION;
-      this.sound?.playEventBell();
-      this.showBanner(
-        this.lang === 'ja'
-          ? '🍣 回転ずしタイム！4列目と8列目が動くよ！'
-          : '🍣 KAITEN-ZUSHI BELT! Rows 4 & 8 are moving!',
-        4.5
-      );
-    }
     if (this.kaitenTimer > 0) {
       this.kaitenTimer = Math.max(0, this.kaitenTimer - dt);
-    }
-
-    // Trigger Sudden Death inward spiral crates
-    if (!this.suddenStarted && this.timeLeft <= SUDDEN_DEATH_AT) {
-      this.suddenStarted = true;
-      this.suddenTickTimer = 0.25;
-      this.sound?.playEventBell();
-      this.showBanner(
-        this.lang === 'ja'
-          ? '📦 閉店タイム！お菓子箱が降ってくる！'
-          : '📦 CLOSING TIME! Pastry crates falling!',
-        4.5
-      );
-    }
-
-    if (this.suddenStarted && this.suddenIndex < SPIRAL_COORDS.length) {
-      this.suddenTickTimer -= dt;
-      if (this.suddenTickTimer <= 0) {
-        this.suddenTickTimer = humansAllGhosts ? 0.38 : 0.62;
-        this.advanceSuddenDeath();
-      }
     }
 
     // Map human players to connected gamepads sequentially
@@ -630,21 +635,23 @@ export class GameEngine {
   }
 
   updateSteamer(dt) {
-    if (!this.goldenMochi) {
-      this.steamerTimer -= dt;
-      if (this.steamerTimer <= 0) {
-        this.steamerTimer = STEAMER_INTERVAL;
-        // Clear any crate/bomb at (6, 5) just in case
-        if (this.grid[5][6] === TILE_TYPE.CRATE) this.grid[5][6] = TILE_TYPE.EMPTY;
-        if (this.grid[5][6] === TILE_TYPE.EMPTY) {
-          this.goldenMochi = { c: 6, r: 5, bobPhase: 0 };
-          this.sound?.playEventBell();
-          const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
-          this.showBanner(tr.eventSteamer, 4);
-        }
-      }
-    } else {
+    if (this.goldenMochi) {
       this.goldenMochi.bobPhase += dt * 5;
+      return;
+    }
+    if (this.suddenStarted) return;
+
+    this.steamerTimer -= dt;
+    if (this.steamerTimer <= 0) {
+      this.steamerTimer = STEAMER_INTERVAL;
+      // Clear any crate/bomb at (6, 5) just in case
+      if (this.grid[5][6] === TILE_TYPE.CRATE) this.grid[5][6] = TILE_TYPE.EMPTY;
+      if (this.grid[5][6] === TILE_TYPE.EMPTY) {
+        this.goldenMochi = { c: 6, r: 5, bobPhase: 0 };
+        this.sound?.playEventBell();
+        const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
+        this.showBanner(tr.eventSteamer, 4);
+      }
     }
   }
 
@@ -667,12 +674,12 @@ export class GameEngine {
 
     if (primaryHuman.state === 'mochi_ball') {
       this.liveHint = tr.hintSelfPuffed;
+    } else if (primaryHuman.state === 'ghost') {
+      this.liveHint = tr.hintGhost;
     } else if (this.players.some((p) => p.id !== primaryHuman.id && p.state === 'mochi_ball')) {
       this.liveHint = tr.hintEnemyPuffed;
     } else if (this.goldenMochi) {
       this.liveHint = tr.hintSteamerReady;
-    } else if (primaryHuman.state === 'ghost') {
-      this.liveHint = tr.hintGhost;
     } else {
       this.liveHint = tr.hintStart;
     }
@@ -810,7 +817,7 @@ export class GameEngine {
 
       // Bump living rivals back during dash
       for (const other of this.players) {
-        if (other.id !== p.id && other.state === 'alive' && other.jumpTimer <= 0) {
+        if (other.id !== p.id && other.state === 'alive' && !other.isCelebrating && other.jumpTimer <= 0) {
           if (Math.hypot(other.x - p.x, other.y - p.y) < TILE * 0.65) {
             for (let step = 0; step < 3; step++) {
               other.x += dirX * 9;
@@ -1116,13 +1123,22 @@ export class GameEngine {
     if (pattern === 'cross_slide') {
       const nextC = targetC + fx;
       const nextR = targetR + fy;
+      const playerAhead = this.players.some(
+        (pl) =>
+          pl.id !== p.id &&
+          pl.state === 'alive' &&
+          pl.jumpTimer <= 0 &&
+          Math.floor(pl.x / TILE) === nextC &&
+          Math.floor(pl.y / TILE) === nextR
+      );
       if (
         nextC >= 1 &&
         nextC < COLS - 1 &&
         nextR >= 1 &&
         nextR < ROWS - 1 &&
         this.grid[nextR][nextC] === TILE_TYPE.EMPTY &&
-        !this.getBombAtTile(nextC, nextR)
+        !this.getBombAtTile(nextC, nextR) &&
+        !playerAhead
       ) {
         vx = fx * 380;
         vy = fy * 380;
@@ -1206,12 +1222,9 @@ export class GameEngine {
               (probeC !== b.c || probeR !== b.r)
           );
 
+          let stopped = false;
           if (blockedByTile || blockedByBomb || blockedByPlayer) {
-            b.vx = 0;
-            b.vy = 0;
-            b.slideDistLeft = undefined;
-            b.x = (b.c + 0.5) * TILE;
-            b.y = (b.r + 0.5) * TILE;
+            stopped = true;
           } else {
             const stepDist = Math.hypot(b.vx * dt, b.vy * dt);
             b.x = nextX;
@@ -1221,11 +1234,20 @@ export class GameEngine {
             if (b.slideDistLeft !== undefined) {
               b.slideDistLeft -= stepDist;
               if (b.slideDistLeft <= 0) {
-                b.vx = 0;
-                b.vy = 0;
-                b.slideDistLeft = undefined;
-                b.x = (b.c + 0.5) * TILE;
-                b.y = (b.r + 0.5) * TILE;
+                stopped = true;
+              }
+            }
+          }
+
+          if (stopped) {
+            b.vx = 0;
+            b.vy = 0;
+            b.slideDistLeft = undefined;
+            b.x = (b.c + 0.5) * TILE;
+            b.y = (b.r + 0.5) * TILE;
+            for (const pl of this.players) {
+              if (pl.state === 'alive' && Math.hypot(pl.x - b.x, pl.y - b.y) < TILE * 0.78) {
+                b.passableBy.add(pl.id);
               }
             }
           }
@@ -1240,7 +1262,7 @@ export class GameEngine {
   }
 
   triggerSelfHop(p) {
-    if (p.state !== 'alive' || p.jumpTimer > 0) return;
+    if (p.state !== 'alive' || p.jumpTimer > 0 || p.isCelebrating) return;
     p.jumpTimer = 0.22;
     p.jumpDuration = 0.22;
     p.jumpStartX = p.x;
@@ -1359,7 +1381,7 @@ export class GameEngine {
         }
       }
       for (const rival of this.players) {
-        if (rival.id !== bomb.ownerId && rival.state === 'alive' && rival.jumpTimer <= 0) {
+        if (rival.id !== bomb.ownerId && rival.state === 'alive' && !rival.isCelebrating && rival.jumpTimer <= 0) {
           const rc = Math.floor(rival.x / TILE);
           const rr = Math.floor(rival.y / TILE);
           if (cellKeys.has(`${rc},${rr}`)) continue;
@@ -1443,7 +1465,7 @@ export class GameEngine {
       const pr = Math.floor(p.y / TILE);
       if (!cellKeys.has(`${pc},${pr}`)) continue;
 
-      if (p.state === 'alive' && p.id !== bomb.ownerId && p.jumpTimer <= 0) {
+      if (p.state === 'alive' && p.id !== bomb.ownerId && !p.isCelebrating && p.jumpTimer <= 0) {
         const nextC = pc + fx;
         const nextR = pr + fy;
         if (this.isTilePassableForPlayer(nextC, nextR, p.id)) {
@@ -1552,11 +1574,11 @@ export class GameEngine {
         pearl.y = nextY;
       }
 
-      // Check player hit (never hits own owner!)
+      // Check player hit (never hits own owner, invulnerable, or celebrating players!)
       let hit = false;
       for (const p of this.players) {
         if (p.id !== pearl.ownerId && p.jumpTimer <= 0 && Math.hypot(p.x - pearl.x, p.y - pearl.y) < TILE * 0.48) {
-          if (p.state === 'alive') {
+          if (p.state === 'alive' && p.invulnTimer <= 0 && !p.isCelebrating) {
             const owner = this.players.find((pl) => pl.id === pearl.ownerId);
             this.puffPlayer(p, owner, false);
             this.spawnConfetti(pearl.x, pearl.y, ['#84cc16', '#365314'], 8);
@@ -1619,6 +1641,8 @@ export class GameEngine {
     p.bowlVy = 0;
     p.bowlTimer = 0;
     p.bowledBy = null;
+    p.prevWiggleDx = 0;
+    p.prevWiggleDy = 0;
     p.stats.timesPuffed += 1;
     if (isGhostShot && attacker && attacker.id !== p.id) {
       attacker.stats.ghostHits += 1;
@@ -1635,6 +1659,7 @@ export class GameEngine {
     ball.bowlVx = vx * speed;
     ball.bowlVy = vy * speed;
     ball.bowlTimer = 0;
+    ball.bowlBounces = 0;
     ball.bowledBy = bowlerId;
     const bowler = this.players.find((b) => b.id === bowlerId);
     if (bowler) bowler.stats.bowls += 1;
@@ -1671,10 +1696,18 @@ export class GameEngine {
     if (p.bowlVx === 0 && p.bowlVy === 0) {
       p.mochiTimer -= dt;
 
-      // Mash action/dash to wiggle free faster (rate-limited so bots don't unpuff instantly)
-      if ((input.actionPressed || input.dashPressed) && p.wiggleCooldown <= 0) {
-        p.wiggleCooldown = p.controlType === 'human' ? 0.18 : 0.48;
-        p.mochiTimer -= 0.16;
+      const dirTap =
+        p.controlType === 'human' &&
+        (input.dx !== 0 || input.dy !== 0) &&
+        (input.dx !== (p.prevWiggleDx || 0) || input.dy !== (p.prevWiggleDy || 0));
+      p.prevWiggleDx = input.dx;
+      p.prevWiggleDy = input.dy;
+
+      // Mash action/dash or directional keys to wiggle free faster (rate-limited so bots don't unpuff instantly)
+      if ((input.actionPressed || input.dashPressed || dirTap) && p.wiggleCooldown <= 0) {
+        const isHuman = p.controlType === 'human';
+        p.wiggleCooldown = isHuman ? 0.12 : 0.48;
+        p.mochiTimer -= isHuman ? 0.24 : 0.16;
         p.walkPhase += 1.4;
         if (p.wiggleFeedbackTimer <= 0) {
           this.addPopup(p.x, p.y - 22, 'WIGGLE! 🍡', '#16a34a');
@@ -1742,7 +1775,10 @@ export class GameEngine {
       }
       p.x = (curC + 0.5) * TILE;
       p.y = (curR + 0.5) * TILE;
-      p.bowlTimer = Math.max(0, p.bowlTimer - 0.3);
+      p.bowlBounces = (p.bowlBounces || 0) + 1;
+      if (p.bowlBounces <= 3) {
+        p.bowlTimer = Math.max(0, p.bowlTimer - 0.3);
+      }
       this.sound?.playBumper();
       this.addPopup(p.x, p.y - 20, 'BOING! 🌸', '#ec4899');
       return;
@@ -1763,7 +1799,14 @@ export class GameEngine {
     p.y = nextY;
 
     for (const other of this.players) {
-      if (other.id !== p.id && other.id !== p.bowledBy && other.state === 'alive' && other.jumpTimer <= 0) {
+      if (
+        other.id !== p.id &&
+        other.id !== p.bowledBy &&
+        other.state === 'alive' &&
+        other.invulnTimer <= 0 &&
+        !other.isCelebrating &&
+        other.jumpTimer <= 0
+      ) {
         if (Math.hypot(other.x - p.x, other.y - p.y) < TILE * 0.58) {
           const bowler = this.players.find((b) => b.id === p.bowledBy);
           if (bowler) bowler.stats.bowls += 1;
@@ -1907,7 +1950,7 @@ export class GameEngine {
       }
     }
 
-    if (input.actionPressed && p.ghostCooldown <= 0) {
+    if (input.actionPressed && p.ghostCooldown <= 0 && this.roundResolveTimer < 0) {
       const target = this.computeGhostTarget(p);
       if (!target) return;
 
@@ -1934,7 +1977,11 @@ export class GameEngine {
       if (gp.progress >= 1) {
         this.ghostProjectiles.splice(i, 1);
         const owner = this.players.find((p) => p.id === gp.ownerId);
-        if (!this.isSolidTile(this.grid[gp.targetR][gp.targetC]) && !this.getBombAtTile(gp.targetC, gp.targetR)) {
+        if (
+          this.roundResolveTimer < 0 &&
+          !this.isSolidTile(this.grid[gp.targetR][gp.targetC]) &&
+          !this.getBombAtTile(gp.targetC, gp.targetR)
+        ) {
           this.bombs.push({
             c: gp.targetC,
             r: gp.targetR,

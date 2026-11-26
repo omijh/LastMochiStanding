@@ -89,7 +89,7 @@ function applyLanguageUI() {
     game.setLang(currentLang);
     lastHudSignature = '';
     updateHUD();
-    if (game.roundResultReady) {
+    if (game.roundResultReady && !document.getElementById('result-overlay').hidden) {
       showResultOverlay();
     }
   }
@@ -236,7 +236,7 @@ function updateHUD() {
   const sig = game.players
     .map(
       (p) =>
-        `${p.id}:${p.char.id}:${p.state}:${p.sugarRushTimer > 0 ? 1 : 0}:${game.matchStats[p.id].wins}`
+        `${p.id}:${p.char.id}:${p.state}:${p.isCelebrating ? 1 : 0}:${p.sugarRushTimer > 0 ? 1 : 0}:${game.matchStats[p.id].wins}`
     )
     .join('|');
 
@@ -270,7 +270,9 @@ function updateHUD() {
 
     const pStatus = document.createElement('span');
     pStatus.className = 'hud-p-status';
-    if (p.state === 'alive') {
+    if (p.isCelebrating) {
+      pStatus.textContent = `👑 ${tr.statusWinner}`;
+    } else if (p.state === 'alive') {
       pStatus.textContent = isRush ? `🌟 ${tr.statusSugarRush}` : tr.statusAlive;
     } else if (p.state === 'mochi_ball') {
       pStatus.textContent = `🍡 ${tr.statusMochi}`;
@@ -378,7 +380,13 @@ function showResultOverlay() {
         const card = document.createElement('div');
         card.className = 'award-card';
         const nm = currentLang === 'ja' ? st.char.nameJa : st.char.nameEn;
-        card.innerHTML = `<div style="font-weight:700">${label}</div><div>${ANIMAL_EMOJIS[st.char.id]} ${nm} (${valFn(st)})</div>`;
+        const labelEl = document.createElement('div');
+        labelEl.style.fontWeight = '700';
+        labelEl.textContent = label;
+        const valEl = document.createElement('div');
+        valEl.textContent = `${ANIMAL_EMOJIS[st.char.id]} ${nm} (${valFn(st)})`;
+        card.appendChild(labelEl);
+        card.appendChild(valEl);
         awardsGrid.appendChild(card);
       }
     } else {
@@ -415,6 +423,8 @@ function startMatch() {
   document.getElementById('lobby-overlay').hidden = true;
   document.getElementById('pause-overlay').hidden = true;
   document.getElementById('result-overlay').hidden = true;
+  document.activeElement?.blur?.();
+  accumulator = 0;
   input.resetAll();
   input.setCaptureKeys(true);
 
@@ -442,6 +452,9 @@ function togglePause() {
   }
   game.paused = !game.paused;
   document.getElementById('pause-overlay').hidden = !game.paused;
+  document.activeElement?.blur?.();
+  accumulator = 0;
+  input.resetAll();
   input.setCaptureKeys(!game.paused);
 }
 
@@ -489,6 +502,7 @@ function toggleLang() {
   } catch {
     // ignore
   }
+  document.activeElement?.blur?.();
   applyLanguageUI();
 }
 
@@ -503,11 +517,13 @@ function toggleMusic() {
   sound.ensureContext();
   sound.toggleMusic();
   updateMusicButtonUI();
+  document.activeElement?.blur?.();
 }
 
 function toggleMute() {
   const muted = sound.toggleMute();
   document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+  document.activeElement?.blur?.();
 }
 
 document.getElementById('start-btn').addEventListener('click', startMatch);
@@ -528,6 +544,8 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
   } else {
     document.getElementById('result-overlay').hidden = true;
     activeWinnerCanvases = [];
+    document.activeElement?.blur?.();
+    accumulator = 0;
     input.resetAll();
     input.setCaptureKeys(true);
     lastHudSignature = '';
@@ -561,6 +579,7 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('resize', () => {
   renderer.setupHiDPI();
+  if (game) renderer.render(game);
 });
 
 applyLanguageUI();

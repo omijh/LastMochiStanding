@@ -52,10 +52,11 @@ export class InputManager {
   }
 
   onKeyDown(e) {
-    if (
-      this.captureKeys &&
-      ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Slash'].includes(e.code)
-    ) {
+    if (!this.captureKeys) return;
+    if (e.target && typeof e.target.closest === 'function' && e.target.closest('button, input, select, textarea')) {
+      return;
+    }
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'Slash'].includes(e.code)) {
       e.preventDefault();
     }
     if (this.heldCodes.has(e.code)) return;
@@ -94,7 +95,7 @@ export class InputManager {
   }
 
   readPlayerInput(slotIdx, gamepadSlotIndex = -1, allowSecondaryKeymap = false, canMoveDirFn = null) {
-    const keymapIndices = allowSecondaryKeymap && slotIdx === 0 ? [0, 1] : [slotIdx];
+    const keymapIndices = allowSecondaryKeymap ? Array.from(new Set([slotIdx, 0, 1])) : [slotIdx];
 
     // Build ordered direction stack (most recently pressed last)
     let stack = [];

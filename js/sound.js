@@ -72,7 +72,7 @@ export class SoundEngine {
     }
     if (this.muted) {
       this.stopMusic();
-    } else if (this.musicEnabled && this.ctx) {
+    } else if (this.musicEnabled) {
       this.startMusic(this.bgmMode);
     }
   }
