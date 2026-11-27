@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#fff1f5">
   <title>Last Mochi Standing 🍡</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -22,6 +25,7 @@
       </div>
 
       <div class="hud-controls">
+        <button class="hud-btn" type="button" id="touch-toggle-btn" title="Toggle Touch Controls" hidden>🕹️</button>
         <button class="hud-btn" type="button" id="lang-btn" title="Switch language">EN / 日本語</button>
         <button class="hud-btn" type="button" id="music-btn" title="Music (B)">🎵</button>
         <button class="hud-btn" type="button" id="mute-btn" title="Mute (M)">🔊</button>
@@ -32,8 +36,33 @@
 
     <main class="arena-stage">
       <div class="event-banner" id="event-banner" hidden></div>
-      <div class="arena-frame">
-        <canvas id="game-canvas" width="728" height="616"></canvas>
+      <div class="play-stage" id="play-stage">
+        <div class="touch-zone touch-zone-left" id="touch-zone-left" hidden>
+          <div class="touch-stick-base" id="touch-stick-base">
+            <span class="touch-dir touch-dir-u">▲</span>
+            <span class="touch-dir touch-dir-d">▼</span>
+            <span class="touch-dir touch-dir-l">◀</span>
+            <span class="touch-dir touch-dir-r">▶</span>
+            <div class="touch-stick-nub" id="touch-stick-nub"></div>
+          </div>
+        </div>
+        <div class="arena-frame">
+          <canvas id="game-canvas" width="728" height="616"></canvas>
+        </div>
+        <div class="touch-zone touch-zone-right" id="touch-zone-right" hidden>
+          <button class="touch-btn touch-btn-dash" type="button" id="touch-dash-btn" aria-label="Dash">
+            <svg class="touch-cd-ring" viewBox="0 0 64 64" aria-hidden="true">
+              <circle class="touch-cd-bg" cx="32" cy="32" r="28"></circle>
+              <circle class="touch-cd-arc" id="touch-dash-cd-arc" cx="32" cy="32" r="28"></circle>
+            </svg>
+            <span class="touch-btn-icon">💨</span>
+            <span class="touch-btn-label" id="touch-dash-label">Dash</span>
+          </button>
+          <button class="touch-btn touch-btn-action" type="button" id="touch-action-btn" aria-label="Snack">
+            <span class="touch-btn-icon">🧁</span>
+            <span class="touch-btn-label" id="touch-action-label">Snack</span>
+          </button>
+        </div>
       </div>
       <div class="coach-bar" id="coach-bar">
         <span class="coach-keys" id="coach-keys">WASD/Arrows: Move · Space/Enter: Snack · Shift/E: Dash</span>

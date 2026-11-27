@@ -1,8 +1,9 @@
-import { CHARACTERS, KEYMAPS, TRANSLATIONS } from './constants.js';
+import { CHARACTERS, DASH_COOLDOWN, KEYMAPS, TRANSLATIONS } from './constants.js';
 import { GameEngine } from './game.js';
 import { InputManager } from './input.js';
 import { GameRenderer } from './renderer.js';
 import { SoundEngine } from './sound.js';
+import { TouchControls } from './touch.js';
 
 const SLOT_CYCLE = ['human', 'bot_chill', 'bot_clever', 'off'];
 const ANIMAL_EMOJIS = { mochi: '🐕', tama: '🐱', yuzu: '🦫', poko: '🐰' };
@@ -11,6 +12,22 @@ const sound = new SoundEngine();
 const input = new InputManager();
 const canvas = document.getElementById('game-canvas');
 const renderer = new GameRenderer(canvas);
+const forceTouchParam =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('touch') === '1';
+let touchManualOverride = forceTouchParam ? true : null;
+
+const touchControls = new TouchControls({
+  zoneLeft: document.getElementById('touch-zone-left'),
+  zoneRight: document.getElementById('touch-zone-right'),
+  stickBase: document.getElementById('touch-stick-base'),
+  stickNub: document.getElementById('touch-stick-nub'),
+  actionBtn: document.getElementById('touch-action-btn'),
+  dashBtn: document.getElementById('touch-dash-btn'),
+  dashCdArc: document.getElementById('touch-dash-cd-arc'),
+  input,
+  onFirstGesture: () => sound.ensureContext(),
+});
 
 let currentLang = (() => {
   try {
@@ -206,6 +223,36 @@ function updateGamepadBarUI() {
   if (legendEl.textContent !== tr.gpLobbyLegend) legendEl.textContent = tr.gpLobbyLegend;
 }
 
+function isTouchCapable() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    window.matchMedia?.('(pointer: coarse)')?.matches ||
+    (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
+  );
+}
+
+function shouldUseTouchUI() {
+  if (touchManualOverride !== null) return touchManualOverride;
+  return isTouchCapable() && getJoinedGamepadSlots().length === 0;
+}
+
+function syncTouchControlsUI() {
+  const useTouch = shouldUseTouchUI();
+  document.body.classList.toggle('is-touch-ui', useTouch);
+
+  const toggleBtn = document.getElementById('touch-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.hidden = !(isTouchCapable() || touchManualOverride !== null);
+    toggleBtn.style.opacity = useTouch ? '1' : '0.55';
+  }
+
+  const lobbyHidden = document.getElementById('lobby-overlay').hidden;
+  const pauseHidden = document.getElementById('pause-overlay').hidden;
+  const resultHidden = document.getElementById('result-overlay').hidden;
+  const inActiveMatch = Boolean(game && lobbyHidden && pauseHidden && resultHidden && !game.paused);
+  touchControls.setVisible(useTouch && inActiveMatch);
+}
+
 function updateStartButtonUI() {
   const tr = t();
   const btn = document.getElementById('start-btn');
@@ -245,9 +292,13 @@ function applyLanguageUI() {
   document.getElementById('awards-title').textContent = tr.awardsTitle;
   document.getElementById('pause-gp-hint').textContent = tr.gpPauseHint;
   document.getElementById('result-gp-hint').textContent = tr.gpResultHint;
+  document.getElementById('touch-action-label').textContent = tr.touchSnack;
+  document.getElementById('touch-dash-label').textContent = tr.touchDash;
+  document.getElementById('touch-toggle-btn').title = tr.touchToggleTitle;
   document.getElementById('mute-btn').textContent = sound.muted ? '🔇' : '🔊';
   updateMusicButtonUI();
   updateCoachKeysUI();
+  syncTouchControlsUI();
 
   renderLobbySlots();
   if (game) {
@@ -444,6 +495,7 @@ function renderLobbySlots() {
   updateGamepadBarUI();
   updateStartButtonUI();
   updateCoachKeysUI();
+  syncTouchControlsUI();
 }
 
 function updateHUD() {
@@ -639,6 +691,7 @@ function showResultOverlay() {
   document.getElementById('result-gp-hint').hidden = input.getConnectedGamepads().length === 0;
   input.syncGamepadButtons();
   overlayInputGuard = 0.45;
+  syncTouchControlsUI();
 }
 
 function joinGamepadToSlot(padIndex) {
@@ -977,6 +1030,7 @@ function startMatch() {
   input.setCaptureKeys(true);
   overlayInputGuard = 0.45;
   updateCoachKeysUI();
+  syncTouchControlsUI();
 
   updateHUD();
   if (!rafId) {
@@ -1014,6 +1068,7 @@ function togglePause() {
   input.syncGamepadButtons();
   input.setCaptureKeys(!game.paused);
   overlayInputGuard = 0.45;
+  syncTouchControlsUI();
 }
 
 function gameLoop(now) {
@@ -1051,6 +1106,17 @@ function gameLoop(now) {
       }
       renderer.render(game);
       updateHUD();
+      if (touchControls.visible) {
+        const touchPlayer =
+          game.players.find(
+            (p) =>
+              p.controlType === 'human' &&
+              !(game.gamepadIndices?.[p.slotIndex] !== null && game.gamepadIndices?.[p.slotIndex] >= 0)
+          ) || game.players.find((p) => p.controlType === 'human');
+        touchControls.updateDashCooldown(
+          touchPlayer ? Math.min(1, Math.max(0, touchPlayer.dashCooldown / DASH_COOLDOWN)) : 0
+        );
+      }
       sound.setMusicMode(
         game.paused || game.roundResultReady
           ? 'lobby'
@@ -1101,6 +1167,13 @@ function toggleMute() {
 }
 
 document.getElementById('start-btn').addEventListener('click', startMatch);
+document.getElementById('touch-toggle-btn').addEventListener('click', () => {
+  touchManualOverride = !shouldUseTouchUI();
+  syncTouchControlsUI();
+  renderer.setupHiDPI();
+  if (game) renderer.render(game);
+  document.activeElement?.blur?.();
+});
 document.getElementById('lang-btn').addEventListener('click', toggleLang);
 document.getElementById('lobby-lang-btn').addEventListener('click', toggleLang);
 document.getElementById('music-btn').addEventListener('click', toggleMusic);
@@ -1127,6 +1200,7 @@ document.getElementById('next-round-btn').addEventListener('click', () => {
     lastHudSignature = '';
     game.startRound();
     updateHUD();
+    syncTouchControlsUI();
   }
 });
 
@@ -1251,7 +1325,18 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('resize', () => {
   renderer.setupHiDPI();
   if (game) renderer.render(game);
+  syncTouchControlsUI();
 });
+
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    renderer.setupHiDPI();
+    if (game) renderer.render(game);
+    syncTouchControlsUI();
+  }, 120);
+});
+
+window.addEventListener('pointerdown', () => sound.ensureContext(), { passive: true });
 
 applyLanguageUI();
 // Draw an initial preview board behind the lobby

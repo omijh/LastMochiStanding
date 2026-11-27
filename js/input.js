@@ -21,6 +21,14 @@ export class InputManager {
     this.prevPadPauseDown = new Map();
     this.padHorizState = new Map();
     this.prevPadStickActive = new Map();
+    this.touch = {
+      ax: 0,
+      ay: 0,
+      actionHeld: false,
+      dashHeld: false,
+      queuedAction: false,
+      queuedDash: false,
+    };
     this.captureKeys = false;
     this.boundKeyDown = (e) => this.onKeyDown(e);
     this.boundKeyUp = (e) => this.onKeyUp(e);
@@ -53,6 +61,37 @@ export class InputManager {
     this.queuedActions = [false, false, false, false];
     this.prevDashDown = [false, false, false, false];
     this.queuedDashes = [false, false, false, false];
+    this.resetTouch();
+  }
+
+  setTouchVector(ax, ay) {
+    this.touch.ax = Math.max(-1, Math.min(1, ax || 0));
+    this.touch.ay = Math.max(-1, Math.min(1, ay || 0));
+  }
+
+  setTouchAction(held) {
+    const next = Boolean(held);
+    if (next && !this.touch.actionHeld) {
+      this.touch.queuedAction = true;
+    }
+    this.touch.actionHeld = next;
+  }
+
+  setTouchDash(held) {
+    const next = Boolean(held);
+    if (next && !this.touch.dashHeld) {
+      this.touch.queuedDash = true;
+    }
+    this.touch.dashHeld = next;
+  }
+
+  resetTouch() {
+    this.touch.ax = 0;
+    this.touch.ay = 0;
+    this.touch.actionHeld = false;
+    this.touch.dashHeld = false;
+    this.touch.queuedAction = false;
+    this.touch.queuedDash = false;
   }
 
   onKeyDown(e) {
@@ -105,7 +144,8 @@ export class InputManager {
     canMoveDirFn = null,
     padHardwareIndex = null,
     excludedPadIndices = null,
-    keyboardKeymapIndex = slotIdx
+    keyboardKeymapIndex = slotIdx,
+    allowTouch = false
   ) {
     let dx = 0;
     let dy = 0;
@@ -229,6 +269,49 @@ export class InputManager {
       );
       if (padAction) actionHeld = true;
       if (padDash) dashHeld = true;
+    }
+
+    if (allowTouch) {
+      const tax = this.touch.ax;
+      const tay = this.touch.ay;
+      if (Math.abs(tax) > 0.22 || Math.abs(tay) > 0.22) {
+        let tx = 0;
+        let ty = 0;
+        if (tax < -0.22) tx = -1;
+        else if (tax > 0.22) tx = 1;
+        if (tay < -0.22) ty = -1;
+        else if (tay > 0.22) ty = 1;
+
+        if (tx !== 0 && ty !== 0) {
+          const xDominant = Math.abs(tax) >= Math.abs(tay);
+          const primary = xDominant ? { x: tx, y: 0 } : { x: 0, y: ty };
+          const secondary = xDominant ? { x: 0, y: ty } : { x: tx, y: 0 };
+          if (
+            canMoveDirFn &&
+            !canMoveDirFn(primary.x, primary.y) &&
+            canMoveDirFn(secondary.x, secondary.y)
+          ) {
+            dx = secondary.x;
+            dy = secondary.y;
+          } else {
+            dx = primary.x;
+            dy = primary.y;
+          }
+        } else {
+          dx = tx;
+          dy = ty;
+        }
+      }
+      if (this.touch.actionHeld) actionHeld = true;
+      if (this.touch.dashHeld) dashHeld = true;
+      if (this.touch.queuedAction) {
+        queuedAction = true;
+        this.touch.queuedAction = false;
+      }
+      if (this.touch.queuedDash) {
+        queuedDash = true;
+        this.touch.queuedDash = false;
+      }
     }
 
     const actionPressed = queuedAction || (actionHeld && !this.prevActionDown[slotIdx]);

@@ -565,6 +565,11 @@ export class GameEngine {
           this.gamepadIndices[p.slotIndex] >= 0
         )
     );
+    const touchTargetSlot =
+      keyboardHumans[0]?.slotIndex ??
+      (this.humanSlotCount === 1
+        ? (this.players.find((p) => p.controlType === 'human')?.slotIndex ?? -1)
+        : -1);
 
     // Update players
     for (const p of this.players) {
@@ -605,7 +610,8 @@ export class GameEngine {
               canMoveDirFn,
               hasBoundPad ? boundPadIdx : null,
               hasBoundPad ? null : boundPadSet,
-              keyboardKeymapIndex
+              keyboardKeymapIndex,
+              p.slotIndex === touchTargetSlot
             )
           : input;
       } else {

@@ -284,6 +284,9 @@ export const TRANSLATIONS = {
     kbPickPrompt: '◀▶ Pick · Space Ready',
     kbSoloShort: 'WASD/Arrows · 🧁Space/Enter · 💨Shift/E',
     kbSoloFull: 'WASD/Arrows · Space/Enter (Snack) · Shift/E (Dash)',
+    touchSnack: 'Snack',
+    touchDash: 'Dash',
+    touchToggleTitle: 'Toggle Touch Controls',
     gpNeedTwoHint: 'Need at least 2 players or bots (press □ to add bots)!',
   },
   ja: {
@@ -357,6 +360,9 @@ export const TRANSLATIONS = {
     kbPickPrompt: '◀▶ 選択 · Space 準備',
     kbSoloShort: 'WASD/矢印 · 🧁Space/Enter · 💨Shift/E',
     kbSoloFull: 'WASD/矢印 · Space/Enter(攻撃) · Shift/E(ダッシュ)',
+    touchSnack: '攻撃',
+    touchDash: 'ダッシュ',
+    touchToggleTitle: 'タッチ操作切替',
     gpNeedTwoHint: '2人以上のプレイヤーまたはBotが必要です（□でBot追加）',
   },
 };
