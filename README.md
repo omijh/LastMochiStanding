@@ -68,6 +68,7 @@ Full **English (`EN`)** and **Japanese (`日本語`)** UI switching is built in,
   - **In-Match:** **Left Stick / D-Pad** to move, **✕ / □** (`buttons[0]`/`[2]`) to drop snacks or wiggle free, **○ / △ / L1 / R1 / L2 / R2** (`buttons[1]`/`[3]`/`[4]`/`[5]`/`[6]`/`[7]`) to Belly-Dash, and **Options / Start** (`buttons[9]`) to Pause.
   - **Pause & Round Results:** **✕ / Options** to Resume or continue to Next Round / Play Again, **○** to return to the Lobby.
 - **`P` / `Esc`:** Pause / Resume match
+- **`F`:** Toggle Fullscreen (`⛶`)
 - **`B`:** Toggle Cozy Café Background Music (`🎵`)
 - **`M`:** Mute / Unmute all audio (`🔊`)
 

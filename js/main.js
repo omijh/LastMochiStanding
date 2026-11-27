@@ -57,6 +57,7 @@ let lastHudSignature = '';
 let activeWinnerCanvases = [];
 let overlayInputGuard = 0;
 let lastCountdownCeil = null;
+let lobbyInfoTimer = null;
 
 function t() {
   return TRANSLATIONS[currentLang] || TRANSLATIONS.en;
@@ -290,6 +291,99 @@ function syncTouchControlsUI() {
   touchControls.setVisible(useTouch && inActiveMatch);
 }
 
+function isStandaloneMode() {
+  if (typeof window === 'undefined') return false;
+  return Boolean(
+    window.navigator?.standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)')?.matches
+  );
+}
+
+function isNativeFullscreenSupported() {
+  if (typeof document === 'undefined') return false;
+  const el = document.documentElement;
+  return Boolean(el && (el.requestFullscreen || el.webkitRequestFullscreen));
+}
+
+function isFullscreenElementActive() {
+  if (typeof document === 'undefined') return false;
+  return Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function showLobbyInfoTip(msg) {
+  const el = document.getElementById('lobby-info');
+  if (!el) return;
+  el.textContent = msg;
+  el.hidden = false;
+  if (lobbyInfoTimer) clearTimeout(lobbyInfoTimer);
+  lobbyInfoTimer = setTimeout(() => {
+    el.hidden = true;
+    lobbyInfoTimer = null;
+  }, 7000);
+}
+
+function updateFullscreenUI() {
+  const tr = t();
+  const standalone = isStandaloneMode();
+  const fsActive = isFullscreenElementActive();
+  const supported = isNativeFullscreenSupported();
+
+  const lobbyFsBtn = document.getElementById('lobby-fs-btn');
+  if (lobbyFsBtn) {
+    if (standalone) {
+      lobbyFsBtn.textContent = tr.fsActiveBtn;
+      lobbyFsBtn.classList.add('is-active');
+      lobbyFsBtn.disabled = true;
+    } else if (fsActive) {
+      lobbyFsBtn.textContent = tr.fsExitBtn;
+      lobbyFsBtn.classList.add('is-active');
+      lobbyFsBtn.disabled = false;
+    } else {
+      lobbyFsBtn.textContent = tr.fsEnterBtn;
+      lobbyFsBtn.classList.remove('is-active');
+      lobbyFsBtn.disabled = false;
+    }
+  }
+
+  const hudFsBtn = document.getElementById('fs-btn');
+  if (hudFsBtn) {
+    hudFsBtn.hidden = !(supported && !standalone);
+    hudFsBtn.title = tr.fsHudTitle;
+    hudFsBtn.classList.toggle('is-active', fsActive);
+  }
+
+  const infoEl = document.getElementById('lobby-info');
+  if (infoEl && !infoEl.hidden) {
+    infoEl.textContent = tr.fsIosTip;
+  }
+}
+
+function toggleFullscreen() {
+  if (isStandaloneMode()) return;
+  if (isFullscreenElementActive()) {
+    const exitFn = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exitFn) {
+      Promise.resolve(exitFn.call(document)).catch(() => {});
+    }
+    return;
+  }
+  const el = document.documentElement;
+  const reqFn = el?.requestFullscreen || el?.webkitRequestFullscreen;
+  if (reqFn) {
+    try {
+      const p = reqFn.call(el);
+      if (p && typeof p.catch === 'function') {
+        p.catch(() => showLobbyInfoTip(t().fsIosTip));
+      }
+    } catch {
+      showLobbyInfoTip(t().fsIosTip);
+    }
+    return;
+  }
+  window.scrollTo?.(0, 1);
+  showLobbyInfoTip(t().fsIosTip);
+}
+
 function updateStartButtonUI() {
   const tr = t();
   const btn = document.getElementById('start-btn');
@@ -334,6 +428,7 @@ function applyLanguageUI() {
   document.getElementById('touch-toggle-btn').title = tr.touchToggleTitle;
   document.getElementById('mute-btn').textContent = sound.muted ? '🔇' : '🔊';
   updateMusicButtonUI();
+  updateFullscreenUI();
   updateTouchCopyUI();
   updateCoachKeysUI();
   syncTouchControlsUI();
@@ -1222,6 +1317,14 @@ document.getElementById('touch-toggle-btn').addEventListener('click', () => {
   if (game) renderer.render(game);
   document.activeElement?.blur?.();
 });
+document.getElementById('fs-btn').addEventListener('click', () => {
+  toggleFullscreen();
+  document.activeElement?.blur?.();
+});
+document.getElementById('lobby-fs-btn').addEventListener('click', () => {
+  toggleFullscreen();
+  document.activeElement?.blur?.();
+});
 document.getElementById('lang-btn').addEventListener('click', toggleLang);
 document.getElementById('lobby-lang-btn').addEventListener('click', toggleLang);
 document.getElementById('music-btn').addEventListener('click', toggleMusic);
@@ -1358,6 +1461,24 @@ window.addEventListener('keydown', (e) => {
       }
     }
   }
+  if (e.code === 'KeyF' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    const isInputFocused =
+      e.target && typeof e.target.closest === 'function' && e.target.closest('input, select, textarea');
+    const lobbyHidden = document.getElementById('lobby-overlay').hidden;
+    const fourKbHumans =
+      lobbyHidden &&
+      game &&
+      game.players.filter(
+        (p) =>
+          p.controlType === 'human' &&
+          !(game.gamepadIndices?.[p.slotIndex] !== null && game.gamepadIndices?.[p.slotIndex] >= 0)
+      ).length >= 4;
+    if (!isInputFocused && !fourKbHumans) {
+      e.preventDefault();
+      toggleFullscreen();
+      return;
+    }
+  }
   if (e.code === 'KeyP' || e.code === 'Escape') {
     if (document.getElementById('lobby-overlay').hidden && document.getElementById('result-overlay').hidden) {
       e.preventDefault();
@@ -1383,6 +1504,14 @@ window.addEventListener('orientationchange', () => {
     syncTouchControlsUI();
   }, 120);
 });
+
+const handleFullscreenChange = () => {
+  updateFullscreenUI();
+  renderer.setupHiDPI();
+  if (game) renderer.render(game);
+};
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
 window.addEventListener('pointerdown', () => sound.ensureContext(), { passive: true });
 

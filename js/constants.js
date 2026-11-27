@@ -294,6 +294,11 @@ export const TRANSLATIONS = {
     touchLobbyStatus: '📱 Touch Mode · Rotate to Landscape for wider view ↻',
     touchLobbyLegend: '🕹️ Left Stick: Move · 🧁 Snack · 💨 Dash (Bluetooth controllers supported)',
     touchBadge: '📱 Touch',
+    fsEnterBtn: '⛶ Fullscreen',
+    fsExitBtn: '⛶ Exit',
+    fsActiveBtn: '✅ Fullscreen',
+    fsHudTitle: 'Fullscreen (F)',
+    fsIosTip: '📱 On iPhone Safari, tap Share → "Add to Home Screen" for full-screen play!',
     gpNeedTwoHint: 'Need at least 2 players or bots (press □ to add bots)!',
   },
   ja: {
@@ -377,6 +382,11 @@ export const TRANSLATIONS = {
     touchLobbyStatus: '📱 タッチ操作モード · 横向きでさらに快適 ↻',
     touchLobbyLegend: '🕹️ 左スティック: 移動 · 🧁 攻撃 · 💨 ダッシュ（Bluetooth対応）',
     touchBadge: '📱 タッチ',
+    fsEnterBtn: '⛶ 全画面',
+    fsExitBtn: '⛶ 終了',
+    fsActiveBtn: '✅ 全画面中',
+    fsHudTitle: '全画面切替 (F)',
+    fsIosTip: '📱 iPhone Safariでは共有 →「ホーム画面に追加」で全画面プレイできます！',
     gpNeedTwoHint: '2人以上のプレイヤーまたはBotが必要です（□でBot追加）',
   },
 };
