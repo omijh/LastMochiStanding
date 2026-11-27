@@ -368,7 +368,8 @@ body {
   opacity: 1;
 }
 
-body.is-touch-ui .coach-bar {
+body.is-touch-ui .coach-bar,
+body.is-touch-ui .slot-keys {
   display: none;
 }
 
@@ -643,6 +644,11 @@ body.is-touch-ui .coach-bar {
   border-color: rgba(16, 185, 129, 0.35);
 }
 
+.gamepad-bar.is-touch-mode {
+  background: linear-gradient(135deg, rgba(253, 242, 248, 0.96), rgba(254, 243, 199, 0.92));
+  border-color: rgba(236, 72, 153, 0.3);
+}
+
 .gamepad-status {
   font-weight: 700;
   color: var(--text);
@@ -706,6 +712,12 @@ body.is-touch-ui .coach-bar {
   background: #eff6ff;
   color: #1d4ed8;
   border: 1px solid rgba(29, 78, 216, 0.2);
+}
+
+.slot-gp-badge.is-touch-badge {
+  background: #fdf2f8;
+  color: #be185d;
+  border-color: rgba(236, 72, 153, 0.28);
 }
 
 .slot-ready-badge {
@@ -1172,6 +1184,12 @@ body.is-touch-ui .coach-bar {
       max(8px, env(safe-area-inset-right))
       max(8px, env(safe-area-inset-bottom))
       max(8px, env(safe-area-inset-left));
+  }
+  .modal.lobby-modal {
+    padding: 12px 12px;
+  }
+  .howto-step {
+    padding: 6px 9px;
   }
   .hud-bar {
     gap: 4px;

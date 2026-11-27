@@ -210,23 +210,37 @@ function updateGamepadBarUI() {
   const activeHumans = [0, 1, 2, 3].filter((i) => lobbyState.slots[i] === 'human');
   const readyHumans = activeHumans.filter((i) => lobbyState.ready[i]).length;
   const connectedCount = input.getConnectedGamepads().length;
+  const useTouch = shouldUseTouchUI();
   barEl.classList.toggle('has-pads', joined.length > 0 || connectedCount > 0);
+  barEl.classList.toggle('is-touch-mode', joined.length === 0 && useTouch);
 
-  const nextStatus =
-    joined.length > 0
-      ? currentLang === 'ja'
+  let nextStatus = tr.gpLobbyIdle;
+  let nextLegend = tr.gpLobbyLegend;
+  if (joined.length > 0) {
+    nextStatus =
+      currentLang === 'ja'
         ? `🎮 ${joined.length}${tr.gpJoinedSuffix} · ${tr.gpReadyProgress} ${readyHumans}/${activeHumans.length}`
-        : `🎮 ${joined.length} ${tr.gpJoinedSuffix} · ${readyHumans}/${activeHumans.length} ${tr.gpReadyProgress}`
-      : tr.gpLobbyIdle;
+        : `🎮 ${joined.length} ${tr.gpJoinedSuffix} · ${readyHumans}/${activeHumans.length} ${tr.gpReadyProgress}`;
+  } else if (useTouch) {
+    nextStatus = tr.touchLobbyStatus;
+    nextLegend = tr.touchLobbyLegend;
+  }
 
   if (statusEl.textContent !== nextStatus) statusEl.textContent = nextStatus;
-  if (legendEl.textContent !== tr.gpLobbyLegend) legendEl.textContent = tr.gpLobbyLegend;
+  if (legendEl.textContent !== nextLegend) legendEl.textContent = nextLegend;
 }
 
 function isTouchCapable() {
   if (typeof window === 'undefined') return false;
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '';
+  const isMobileUA =
+    /iPhone|iPad|iPod|Android|Mobile/i.test(ua) ||
+    (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   return Boolean(
+    isMobileUA ||
+    'ontouchstart' in window ||
     window.matchMedia?.('(pointer: coarse)')?.matches ||
+    window.matchMedia?.('(any-pointer: coarse)')?.matches ||
     (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
   );
 }
@@ -236,14 +250,37 @@ function shouldUseTouchUI() {
   return isTouchCapable() && getJoinedGamepadSlots().length === 0;
 }
 
+function updateTouchCopyUI() {
+  const tr = t();
+  const useTouch = shouldUseTouchUI();
+  document.getElementById('howto-step1-desc').textContent = useTouch
+    ? tr.touchHowStep1Desc
+    : tr.howStep1Desc;
+  document.getElementById('howto-step2-desc').textContent = useTouch
+    ? tr.touchHowStep2Desc
+    : tr.howStep2Desc;
+  document.getElementById('howto-step3-desc').textContent = useTouch
+    ? tr.touchHowStep3Desc
+    : tr.howStep3Desc;
+  document.getElementById('paused-sub').textContent = useTouch
+    ? tr.touchPausedSub
+    : tr.pausedSub;
+}
+
 function syncTouchControlsUI() {
   const useTouch = shouldUseTouchUI();
+  const prevTouch = document.body.classList.contains('is-touch-ui');
   document.body.classList.toggle('is-touch-ui', useTouch);
 
   const toggleBtn = document.getElementById('touch-toggle-btn');
   if (toggleBtn) {
     toggleBtn.hidden = !(isTouchCapable() || touchManualOverride !== null);
     toggleBtn.style.opacity = useTouch ? '1' : '0.55';
+  }
+
+  if (prevTouch !== useTouch) {
+    updateTouchCopyUI();
+    updateGamepadBarUI();
   }
 
   const lobbyHidden = document.getElementById('lobby-overlay').hidden;
@@ -297,6 +334,7 @@ function applyLanguageUI() {
   document.getElementById('touch-toggle-btn').title = tr.touchToggleTitle;
   document.getElementById('mute-btn').textContent = sound.muted ? '🔇' : '🔊';
   updateMusicButtonUI();
+  updateTouchCopyUI();
   updateCoachKeysUI();
   syncTouchControlsUI();
 
@@ -485,6 +523,16 @@ function renderLobbySlots() {
       gpRow.appendChild(readyBadge);
       card.appendChild(gpRow);
       card.appendChild(keys);
+    } else if (isKbHuman && shouldUseTouchUI() && kbSlots[0] === idx) {
+      const gpRow = document.createElement('div');
+      gpRow.className = 'slot-gp-row';
+
+      const touchBadge = document.createElement('span');
+      touchBadge.className = 'slot-gp-badge is-touch-badge';
+      touchBadge.textContent = tr.touchBadge;
+
+      gpRow.appendChild(touchBadge);
+      card.appendChild(gpRow);
     } else {
       card.appendChild(keys);
     }
@@ -1169,7 +1217,7 @@ function toggleMute() {
 document.getElementById('start-btn').addEventListener('click', startMatch);
 document.getElementById('touch-toggle-btn').addEventListener('click', () => {
   touchManualOverride = !shouldUseTouchUI();
-  syncTouchControlsUI();
+  applyLanguageUI();
   renderer.setupHiDPI();
   if (game) renderer.render(game);
   document.activeElement?.blur?.();
