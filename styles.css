@@ -957,7 +957,7 @@ body.is-touch-ui .slot-keys {
 }
 
 .info-note {
-  margin-top: 8px;
+  margin: 0 0 10px;
   padding: 6px 12px;
   border-radius: 12px;
   background: #fdf2f8;
@@ -1211,6 +1211,11 @@ body.is-touch-ui .slot-keys {
   .pill-btn {
     font-size: 11.5px;
     padding: 5px 9px;
+  }
+  .info-note {
+    margin: 0 0 6px;
+    padding: 4px 10px;
+    font-size: 11px;
   }
   .event-banner {
     top: 2px;
