@@ -79,6 +79,9 @@ export class GameEngine {
       'bot_chill',
     ];
     this.charIds = options.charIds || CHARACTERS.map((c) => c.id);
+    this.gamepadIndices = Array.isArray(options.gamepadIndices)
+      ? options.gamepadIndices.slice(0, 4)
+      : [null, null, null, null];
     this.lang = options.lang || 'en';
     this.humanSlotCount = this.slotConfigs.filter((s) => s === 'human').length;
 
@@ -548,9 +551,20 @@ export class GameEngine {
       this.kaitenTimer = Math.max(0, this.kaitenTimer - dt);
     }
 
-    // Map human players to connected gamepads sequentially
+    // Map human players to bound hardware gamepads, falling back sequentially for unbound slots
     let gamepadCounter = 0;
-    const allowSecondary = this.humanSlotCount === 1;
+    const boundPadSet = new Set(
+      this.gamepadIndices.filter((idx) => idx !== null && idx !== undefined && idx >= 0)
+    );
+    const keyboardHumans = this.players.filter(
+      (p) =>
+        p.controlType === 'human' &&
+        !(
+          this.gamepadIndices[p.slotIndex] !== null &&
+          this.gamepadIndices[p.slotIndex] !== undefined &&
+          this.gamepadIndices[p.slotIndex] >= 0
+        )
+    );
 
     // Update players
     for (const p of this.players) {
@@ -565,7 +579,18 @@ export class GameEngine {
 
       let input = { dx: 0, dy: 0, actionPressed: false, dashPressed: false };
       if (p.controlType === 'human') {
-        const gpIdx = gamepadCounter++;
+        const boundPadIdx = this.gamepadIndices[p.slotIndex] ?? null;
+        const hasBoundPad = boundPadIdx !== null && boundPadIdx >= 0;
+        const gpIdx = hasBoundPad ? -1 : gamepadCounter++;
+        const kbOrder = hasBoundPad ? -1 : keyboardHumans.indexOf(p);
+        const keyboardKeymapIndex = hasBoundPad
+          ? keyboardHumans.length > 0
+            ? -1
+            : p.slotIndex
+          : kbOrder;
+        const allowSecondaryForPlayer = hasBoundPad
+          ? keyboardHumans.length === 0 && this.humanSlotCount === 1
+          : keyboardHumans.length === 1;
         const curC = Math.floor(p.x / TILE);
         const curR = Math.floor(p.y / TILE);
         const canMoveDirFn =
@@ -573,7 +598,15 @@ export class GameEngine {
             ? (dx, dy) => this.isTilePassableForPlayer(curC + dx, curR + dy, p.id)
             : null;
         input = inputManager
-          ? inputManager.readPlayerInput(p.slotIndex, gpIdx, allowSecondary, canMoveDirFn)
+          ? inputManager.readPlayerInput(
+              p.slotIndex,
+              gpIdx,
+              allowSecondaryForPlayer,
+              canMoveDirFn,
+              hasBoundPad ? boundPadIdx : null,
+              hasBoundPad ? null : boundPadSet,
+              keyboardKeymapIndex
+            )
           : input;
       } else {
         input = computeBotInput(this, p, dt);
@@ -666,18 +699,42 @@ export class GameEngine {
 
   updateLiveHint() {
     const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
-    const primaryHuman = this.players.find((p) => p.controlType === 'human') || this.players[0];
-    if (!primaryHuman) {
-      this.liveHint = tr.hintStart;
+    const humans = this.players.filter((p) => p.controlType === 'human');
+
+    if (humans.length === 0) {
+      if (this.players.some((p) => p.state === 'mochi_ball')) {
+        this.liveHint = tr.hintEnemyPuffed;
+      } else if (this.goldenMochi) {
+        this.liveHint = tr.hintSteamerReady;
+      } else {
+        this.liveHint = tr.hintStart;
+      }
       return;
     }
 
-    if (primaryHuman.state === 'mochi_ball') {
-      this.liveHint = tr.hintSelfPuffed;
-    } else if (primaryHuman.state === 'ghost') {
+    if (humans.length === 1) {
+      const primaryHuman = humans[0];
+      if (primaryHuman.state === 'mochi_ball') {
+        this.liveHint = tr.hintSelfPuffed;
+      } else if (primaryHuman.state === 'ghost') {
+        this.liveHint = tr.hintGhost;
+      } else if (this.players.some((p) => p.id !== primaryHuman.id && p.state === 'mochi_ball')) {
+        this.liveHint = tr.hintEnemyPuffed;
+      } else if (this.goldenMochi) {
+        this.liveHint = tr.hintSteamerReady;
+      } else {
+        this.liveHint = tr.hintStart;
+      }
+      return;
+    }
+
+    // 2+ human players
+    if (humans.every((p) => p.state === 'ghost')) {
       this.liveHint = tr.hintGhost;
-    } else if (this.players.some((p) => p.id !== primaryHuman.id && p.state === 'mochi_ball')) {
+    } else if (this.players.some((p) => p.state === 'mochi_ball')) {
       this.liveHint = tr.hintEnemyPuffed;
+    } else if (humans.some((p) => p.state === 'ghost')) {
+      this.liveHint = tr.hintGhost;
     } else if (this.goldenMochi) {
       this.liveHint = tr.hintSteamerReady;
     } else {

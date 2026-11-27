@@ -206,31 +206,62 @@ body {
 }
 
 .coach-bar {
-  width: min(1040px, 100%);
+  width: min(1080px, 100%);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 6px 14px;
-  border-radius: 999px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 6px 12px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.92);
   border: 2px solid rgba(120, 60, 40, 0.1);
   box-shadow: 0 6px 18px rgba(120, 60, 40, 0.08);
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
 .coach-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  padding: 0;
+  white-space: normal;
+}
+
+.coach-key-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-weight: 700;
-  color: #475569;
+  font-size: 11.5px;
+  color: #334155;
   background: #f1f5f9;
-  padding: 3px 10px;
+  border: 1px solid rgba(120, 60, 40, 0.1);
+  padding: 2px 9px;
   border-radius: 999px;
   white-space: nowrap;
 }
 
+.coach-key-pill.is-gp-legend {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: rgba(29, 78, 216, 0.2);
+}
+
+.coach-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 .coach-hint {
+  flex: 1 1 220px;
   font-weight: 700;
+  font-size: 12px;
   color: #9a3412;
   text-align: right;
   overflow: hidden;
@@ -372,6 +403,37 @@ body {
   color: var(--muted);
 }
 
+.gamepad-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 13px;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1.5px solid rgba(120, 60, 40, 0.12);
+  font-size: 12px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.gamepad-bar.has-pads {
+  background: linear-gradient(135deg, rgba(253, 242, 248, 0.96), rgba(236, 253, 245, 0.96));
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.gamepad-status {
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.gamepad-legend {
+  font-weight: 600;
+  color: var(--muted);
+  text-align: right;
+}
+
 .slots-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -389,11 +451,59 @@ body {
   align-items: center;
   text-align: center;
   gap: 5px;
-  transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.2s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .slot-card.is-off {
   opacity: 0.52;
+}
+
+.slot-card.has-gamepad {
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.14);
+}
+
+.slot-card.is-ready {
+  border-color: #10b981 !important;
+  background: #f0fdf4;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(16, 185, 129, 0.2);
+}
+
+.slot-gp-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.slot-gp-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid rgba(29, 78, 216, 0.2);
+}
+
+.slot-ready-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.slot-ready-badge.is-ready {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.slot-card.is-ready .char-swap-btn {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 .slot-portrait-wrap {
@@ -560,6 +670,28 @@ body {
   box-shadow: 0 14px 28px rgba(236, 72, 153, 0.38);
 }
 
+.primary-btn.is-countdown {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 10px 26px rgba(16, 185, 129, 0.36);
+  animation: countdownPulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes countdownPulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.04); }
+}
+
+.overlay-gp-hint {
+  margin: 12px auto 0;
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .error-note {
   margin-top: 8px;
   text-align: right;
@@ -639,6 +771,14 @@ body {
   .howto-strip {
     grid-template-columns: 1fr;
   }
+  .gamepad-bar {
+    flex-direction: column;
+    text-align: center;
+    gap: 4px;
+  }
+  .gamepad-legend {
+    text-align: center;
+  }
   .slots-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -646,6 +786,9 @@ body {
     flex-direction: column;
     border-radius: 14px;
     text-align: center;
+  }
+  .coach-keys {
+    justify-content: center;
   }
   .coach-hint {
     white-space: normal;

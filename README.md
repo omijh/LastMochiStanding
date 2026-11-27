@@ -60,7 +60,11 @@ Full **English (`EN`)** and **Japanese (`日本語`)** UI switching is built in,
 | **Player 4** | `T` `F` `G` `H` / `Numpad 8 4 5 6` | `R` / `Numpad 0` | `Y` / `Numpad .` |
 
 ### Gamepad & Global Shortcuts
-- **USB / Bluetooth Controllers:** Plug-and-play support via the browser Gamepad API — Left Stick / D-Pad to move, `A`/`X` (`buttons[0]`/`[2]`) to attack, and `B`/`Y`/`LB`/`RB` (`buttons[1]`/`[3]`/`[4]`/`[5]`) to Dash. Connected gamepads automatically assign sequentially to Human player slots.
+- **Zero-Mouse USB / Bluetooth Controller Support (DualSense, Xbox, Switch):**
+  - **Lobby:** Connect 1–4 controllers and press **any button** (or move a stick) to join a slot! Press **L1 / R1** (`LB / RB`) to switch between open `P1`–`P4` slots (vacated slots become Bots), **Left Stick / D-Pad ◀▶** to pick a character, **✕ / A** to Ready Up (match auto-starts once everyone joined is ready, or press **✕ / Options** to start right away), **○ / B** to unready or leave, **□ / X** to cycle Bot difficulty (`Chill Bot` / `Clever Bot` / `Off`), and **△ / Y** to toggle Match Length (`First to 2` / `First to 3`).
+  - **Mixed Controllers + Keyboard (e.g., 3 Controllers + 1 Keyboard):** In the lobby, press **`Space` / `Enter`** on the keyboard to claim an open slot, **`A`/`D`** or **`◀`/`▶`** to pick a character, and **`Space` / `Enter`** to Ready Up (**`Esc` / `Backspace`** to unready/leave). A sole keyboard player in any seat (`P1`–`P4`) automatically gets **`WASD` / `Arrows` + `Space`/`Enter` + `Shift`/`E`** without interfering with controller players.
+  - **In-Match:** **Left Stick / D-Pad** to move, **✕ / □** (`buttons[0]`/`[2]`) to drop snacks or wiggle free, **○ / △ / L1 / R1 / L2 / R2** (`buttons[1]`/`[3]`/`[4]`/`[5]`/`[6]`/`[7]`) to Belly-Dash, and **Options / Start** (`buttons[9]`) to Pause.
+  - **Pause & Round Results:** **✕ / Options** to Resume or continue to Next Round / Play Again, **○** to return to the Lobby.
 - **`P` / `Esc`:** Pause / Resume match
 - **`B`:** Toggle Cozy Café Background Music (`🎵`)
 - **`M`:** Mute / Unmute all audio (`🔊`)
