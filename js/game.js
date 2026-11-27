@@ -512,12 +512,8 @@ export class GameEngine {
         this.kaitenTriggered = true;
         this.kaitenTimer = KAITEN_DURATION;
         this.sound?.playEventBell();
-        this.showBanner(
-          this.lang === 'ja'
-            ? '🍣 回転ずしタイム！4列目と8列目が動くよ！'
-            : '🍣 KAITEN-ZUSHI BELT! Rows 4 & 8 are moving!',
-          4.5
-        );
+        const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
+        this.showBanner(tr.eventKaiten, 3.2);
       }
 
       // Trigger Sudden Death inward spiral crates
@@ -525,12 +521,8 @@ export class GameEngine {
         this.suddenStarted = true;
         this.suddenTickTimer = 0.25;
         this.sound?.playEventBell();
-        this.showBanner(
-          this.lang === 'ja'
-            ? '📦 閉店タイム！お菓子箱が降ってくる！'
-            : '📦 CLOSING TIME! Pastry crates falling!',
-          4.5
-        );
+        const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
+        this.showBanner(tr.eventSuddenDeath, 3.2);
       }
 
       if (this.suddenStarted && this.suddenIndex < SPIRAL_COORDS.length) {
@@ -689,7 +681,7 @@ export class GameEngine {
         this.goldenMochi = { c: 6, r: 5, bobPhase: 0 };
         this.sound?.playEventBell();
         const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
-        this.showBanner(tr.eventSteamer, 4);
+        this.showBanner(tr.eventSteamer, 2.8);
       }
     }
   }

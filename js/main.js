@@ -1386,6 +1386,21 @@ window.addEventListener('orientationchange', () => {
 
 window.addEventListener('pointerdown', () => sound.ensureContext(), { passive: true });
 
+// Prevent accidental iOS Safari pinch-zoom and double-tap zoom during rapid gameplay
+document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+document.addEventListener(
+  'touchmove',
+  (e) => {
+    if (e.touches && e.touches.length > 1) {
+      e.preventDefault();
+    }
+  },
+  { passive: false }
+);
+
 applyLanguageUI();
 // Draw an initial preview board behind the lobby
 game = new GameEngine(null, {
