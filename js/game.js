@@ -66,9 +66,10 @@ export class GameEngine {
       ? options.gamepadIndices.slice(0, 4)
       : [null, null, null, null];
     this.lang = options.lang || 'en';
+    this.isTouchMode = Boolean(options.isTouchMode);
     this.mapSelection = options.mapSelection || 'random';
     this.forcedMapId = options.forcedMapId || null;
-    this.mapId = null;
+    this.mapId = options.prevMapId || null;
     this.mapConfig = getMapConfig('cafe');
     this.humanSlotCount = this.slotConfigs.filter((s) => s === 'human').length;
 
@@ -100,6 +101,14 @@ export class GameEngine {
   setLang(lang) {
     this.lang = lang;
     this.updateLiveHint();
+    if (this.sound) {
+      const mapName = this.lang === 'ja' ? this.mapConfig.nameJa : this.mapConfig.nameEn;
+      this.showBanner(`${this.mapConfig.emoji} ${mapName} · R${this.roundNumber}`, 2.2);
+    }
+  }
+
+  setTouchMode(enabled) {
+    this.isTouchMode = Boolean(enabled);
   }
 
   startRound() {
@@ -208,6 +217,10 @@ export class GameEngine {
     });
 
     this.updateLiveHint();
+    if (this.sound) {
+      const mapName = this.lang === 'ja' ? this.mapConfig.nameJa : this.mapConfig.nameEn;
+      this.showBanner(`${this.mapConfig.emoji} ${mapName} · R${this.roundNumber}`, 2.2);
+    }
   }
 
   generateGrid() {

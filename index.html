@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
   <div class="app-shell">
@@ -166,6 +166,7 @@
       <p id="paused-sub">Press P or click Resume to jump back in.</p>
       <div class="modal-actions">
         <button class="primary-btn" type="button" id="resume-btn">Resume</button>
+        <button class="secondary-btn" type="button" id="pause-restart-btn">🔄 Restart</button>
         <button class="secondary-btn" type="button" id="pause-lobby-btn">Back to Lobby</button>
       </div>
       <p class="overlay-gp-hint" id="pause-gp-hint" hidden></p>
@@ -175,22 +176,29 @@
   <!-- Round / Match Result Overlay -->
   <div class="overlay" id="result-overlay" hidden>
     <div class="modal result-modal">
-      <div class="result-badge" id="result-badge">👑</div>
-      <h2 id="result-title">Round Winner!</h2>
-      <p class="result-sub" id="result-sub"></p>
-      <div class="scoreboard" id="result-scoreboard"></div>
-      <div class="awards-section" id="awards-section" hidden>
-        <h3 id="awards-title">Office Awards</h3>
-        <div class="awards-grid" id="awards-grid"></div>
+      <div class="result-header">
+        <div class="result-badge" id="result-badge">👑</div>
+        <div class="result-heading">
+          <h2 id="result-title">Round Winner!</h2>
+          <p class="result-sub" id="result-sub"></p>
+        </div>
       </div>
-      <div class="modal-actions">
+      <div class="result-body" id="result-body">
+        <div class="scoreboard" id="result-scoreboard"></div>
+        <div class="awards-section" id="awards-section" hidden>
+          <h3 id="awards-title">Office Awards</h3>
+          <div class="awards-grid" id="awards-grid"></div>
+        </div>
+      </div>
+      <div class="modal-actions result-actions">
         <button class="primary-btn" type="button" id="next-round-btn">Next Round</button>
+        <button class="secondary-btn" type="button" id="result-map-btn" hidden>🗺️ Change Map</button>
         <button class="secondary-btn" type="button" id="result-lobby-btn">Back to Lobby</button>
       </div>
       <p class="overlay-gp-hint" id="result-gp-hint" hidden></p>
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=5"></script>
+  <script type="module" src="js/main.js?v=6"></script>
 </body>
 </html>

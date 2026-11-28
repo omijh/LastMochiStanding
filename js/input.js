@@ -444,6 +444,8 @@ export class InputManager {
         lengthPressed: rising(3),
         prevSlotPressed: rising(4),
         nextSlotPressed: rising(5),
+        prevMapPressed: rising(6),
+        nextMapPressed: rising(7),
         startPressed: rising(9),
       });
     }

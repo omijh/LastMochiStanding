@@ -292,6 +292,7 @@ function syncTouchControlsUI() {
   const pauseHidden = document.getElementById('pause-overlay').hidden;
   const resultHidden = document.getElementById('result-overlay').hidden;
   const inActiveMatch = Boolean(game && lobbyHidden && mapHidden && pauseHidden && resultHidden && !game.paused);
+  game?.setTouchMode?.(useTouch);
   touchControls.setVisible(useTouch && inActiveMatch);
 }
 
@@ -399,8 +400,16 @@ function updateStartButtonUI() {
     lastCountdownCeil = secs;
   } else {
     btn.classList.remove('is-countdown');
-    btn.textContent = tr.chooseMapBtn;
+    btn.textContent = lobbyState.mapSelection === 'random' ? tr.chooseMapBtn : tr.playBtn;
     lastCountdownCeil = null;
+  }
+}
+
+function proceedFromCharacterSelect() {
+  if (lobbyState.mapSelection === 'random') {
+    openMapSelect();
+  } else {
+    startMatch();
   }
 }
 
@@ -422,7 +431,9 @@ function applyLanguageUI() {
   document.getElementById('paused-title').textContent = tr.pausedTitle;
   document.getElementById('paused-sub').textContent = tr.pausedSub;
   document.getElementById('resume-btn').textContent = tr.resumeLabel;
+  document.getElementById('pause-restart-btn').textContent = tr.restartRoundBtn;
   document.getElementById('pause-lobby-btn').textContent = tr.backLobbyBtn;
+  document.getElementById('result-map-btn').textContent = tr.changeMapBtn;
   document.getElementById('result-lobby-btn').textContent = tr.backLobbyBtn;
   document.getElementById('awards-title').textContent = tr.awardsTitle;
   document.getElementById('pause-gp-hint').textContent = tr.gpPauseHint;
@@ -829,10 +840,10 @@ function showResultOverlay() {
         const card = document.createElement('div');
         card.className = 'award-card';
         const nm = currentLang === 'ja' ? st.char.nameJa : st.char.nameEn;
-        const labelEl = document.createElement('div');
+        const labelEl = document.createElement('span');
         labelEl.style.fontWeight = '700';
         labelEl.textContent = label;
-        const valEl = document.createElement('div');
+        const valEl = document.createElement('span');
         valEl.textContent = `${ANIMAL_EMOJIS[st.char.id]} ${nm} (${valFn(st)})`;
         card.appendChild(labelEl);
         card.appendChild(valEl);
@@ -844,6 +855,10 @@ function showResultOverlay() {
   } else {
     awardsSec.hidden = true;
   }
+
+  document.getElementById('result-map-btn').hidden = !game.matchOver;
+  const resultBody = document.getElementById('result-body');
+  if (resultBody) resultBody.scrollTop = 0;
 
   overlay.hidden = false;
   document.getElementById('result-gp-hint').hidden = input.getConnectedGamepads().length === 0;
@@ -1064,7 +1079,7 @@ function pollLobbyGamepads(dt) {
         evaluateStartCountdown();
         needsRender = true;
       } else if (lobbyState.startCountdown !== null) {
-        openMapSelect();
+        proceedFromCharacterSelect();
         return;
       }
     }
@@ -1074,7 +1089,7 @@ function pollLobbyGamepads(dt) {
         lobbyState.startCountdown !== null ||
         (activeHumans.length > 0 && activeHumans.every((i) => lobbyState.ready[i]))
       ) {
-        openMapSelect();
+        proceedFromCharacterSelect();
         return;
       } else if (!lobbyState.ready[slotIdx]) {
         lobbyState.ready[slotIdx] = true;
@@ -1102,6 +1117,12 @@ function pollLobbyGamepads(dt) {
     if (pad.lengthPressed) {
       toggleBestOf();
     }
+    if (pad.prevMapPressed) {
+      cycleMapSelection(-1);
+    }
+    if (pad.nextMapPressed) {
+      cycleMapSelection(1);
+    }
   }
 
   if (needsRender) {
@@ -1111,7 +1132,7 @@ function pollLobbyGamepads(dt) {
   if (lobbyState.startCountdown !== null) {
     lobbyState.startCountdown -= dt;
     if (lobbyState.startCountdown <= 0) {
-      openMapSelect();
+      proceedFromCharacterSelect();
       return;
     }
     const secs = Math.max(1, Math.ceil(lobbyState.startCountdown));
@@ -1206,6 +1227,7 @@ function renderMapSelectGrid() {
       sound.playDrop();
       renderMapSelectGrid();
       updateLiveMapPreview(id);
+      updateStartButtonUI();
     });
     grid.appendChild(card);
   }
@@ -1257,6 +1279,7 @@ function cycleMapSelection(delta) {
   sound.playDrop();
   renderMapSelectGrid();
   updateLiveMapPreview(lobbyState.mapSelection);
+  updateStartButtonUI();
 }
 
 function pollMapOverlayGamepads(dt) {
@@ -1266,11 +1289,11 @@ function pollMapOverlayGamepads(dt) {
   if (overlayInputGuard > 0) return;
 
   for (const pad of snapshots) {
-    if (pad.leftPressed) {
+    if (pad.leftPressed || pad.prevMapPressed) {
       cycleMapSelection(-1);
       return;
     }
-    if (pad.rightPressed) {
+    if (pad.rightPressed || pad.nextMapPressed) {
       cycleMapSelection(1);
       return;
     }
@@ -1312,6 +1335,10 @@ function pollResultOverlayGamepads(dt) {
       document.getElementById('next-round-btn').click();
       return;
     }
+    if (game?.matchOver && (pad.lengthPressed || pad.prevMapPressed || pad.nextMapPressed)) {
+      document.getElementById('result-map-btn').click();
+      return;
+    }
     if (pad.cancelPressed) {
       returnToLobby();
       return;
@@ -1337,6 +1364,8 @@ function startMatch() {
     gamepadIndices: [...lobbyState.gamepadIndices],
     bestOf: lobbyState.bestOf,
     mapSelection: lobbyState.mapSelection,
+    prevMapId: game?.mapId || null,
+    isTouchMode: shouldUseTouchUI(),
     lang: currentLang,
   });
   resultShownForRound = 0;
@@ -1503,7 +1532,7 @@ function toggleMute() {
   document.activeElement?.blur?.();
 }
 
-document.getElementById('start-btn').addEventListener('click', openMapSelect);
+document.getElementById('start-btn').addEventListener('click', proceedFromCharacterSelect);
 document.getElementById('lobby-map-btn').addEventListener('click', () => {
   cycleMapSelection(1);
 });
@@ -1531,8 +1560,15 @@ document.getElementById('music-btn').addEventListener('click', toggleMusic);
 document.getElementById('mute-btn').addEventListener('click', toggleMute);
 document.getElementById('pause-btn').addEventListener('click', togglePause);
 document.getElementById('resume-btn').addEventListener('click', togglePause);
+document.getElementById('pause-restart-btn').addEventListener('click', startMatch);
 document.getElementById('lobby-btn').addEventListener('click', returnToLobby);
 document.getElementById('pause-lobby-btn').addEventListener('click', returnToLobby);
+document.getElementById('result-map-btn').addEventListener('click', () => {
+  if (game) game.paused = true;
+  activeWinnerCanvases = [];
+  document.getElementById('result-overlay').hidden = true;
+  openMapSelect();
+});
 document.getElementById('result-lobby-btn').addEventListener('click', returnToLobby);
 
 document.getElementById('next-round-btn').addEventListener('click', () => {
@@ -1596,6 +1632,31 @@ window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
   const lobbyVisible = !document.getElementById('lobby-overlay').hidden;
   const mapVisible = !document.getElementById('map-overlay').hidden;
+  const pauseVisible = !document.getElementById('pause-overlay').hidden;
+  const resultVisible = !document.getElementById('result-overlay').hidden;
+  if (resultVisible && overlayInputGuard <= 0) {
+    const isControlFocused =
+      e.target && typeof e.target.closest === 'function' && e.target.closest('button, input, select, textarea');
+    if ((e.code === 'Space' || e.code === 'Enter') && !isControlFocused) {
+      e.preventDefault();
+      document.getElementById('next-round-btn').click();
+      return;
+    }
+    if (e.code === 'Escape' || e.code === 'Backspace') {
+      e.preventDefault();
+      returnToLobby();
+      return;
+    }
+  }
+  if (pauseVisible && overlayInputGuard <= 0) {
+    const isControlFocused =
+      e.target && typeof e.target.closest === 'function' && e.target.closest('button, input, select, textarea');
+    if ((e.code === 'Space' || e.code === 'Enter') && !isControlFocused) {
+      e.preventDefault();
+      togglePause();
+      return;
+    }
+  }
   if (mapVisible && overlayInputGuard <= 0) {
     const isControlFocused =
       e.target && typeof e.target.closest === 'function' && e.target.closest('button, input, select, textarea');
@@ -1645,7 +1706,7 @@ window.addEventListener('keydown', (e) => {
             evaluateStartCountdown();
             renderLobbySlots();
           } else if (lobbyState.startCountdown !== null) {
-            openMapSelect();
+            proceedFromCharacterSelect();
           }
         }
         return;

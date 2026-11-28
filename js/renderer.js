@@ -2495,8 +2495,12 @@ export class GameRenderer {
       const isSelfHuman = p.controlType === 'human' && game.humanSlotCount === 1;
       const msg = isSelfHuman
         ? game.lang === 'ja'
-          ? '連打で脱出！'
-          : 'TAP SPACE: WIGGLE!'
+          ? game.isTouchMode
+            ? '🧁連打で脱出！'
+            : '連打で脱出！'
+          : game.isTouchMode
+            ? 'TAP 🧁: WIGGLE!'
+            : 'TAP SPACE: WIGGLE!'
         : game.lang === 'ja'
           ? '🎳 体当たりでKO!'
           : '🎳 BUMP / DASH TO KO!';

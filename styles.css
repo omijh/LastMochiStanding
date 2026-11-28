@@ -717,8 +717,33 @@ body[data-menu-map="space"] .modal {
 }
 
 .result-modal {
-  width: min(560px, 100%);
+  width: min(680px, 100%);
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 14px 18px;
   text-align: center;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.result-heading {
+  text-align: left;
+  min-width: 0;
+}
+
+.result-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .modal-top {
@@ -1125,32 +1150,35 @@ body[data-menu-map="space"] .modal {
 }
 
 .result-badge {
-  font-size: 52px;
+  font-size: 32px;
   line-height: 1;
-  margin-bottom: 6px;
+  flex-shrink: 0;
 }
 
 .result-modal h2 {
   margin: 0;
-  font-size: 28px;
+  font-size: clamp(19px, 2.6vw, 24px);
+  line-height: 1.15;
 }
 
 .result-sub {
-  margin: 6px 0 16px;
+  margin: 2px 0 0;
+  font-size: 13px;
   color: var(--muted);
 }
 
 .scoreboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 8px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
 }
 
 .score-pill {
   background: #ffffff;
-  border-radius: 14px;
-  padding: 10px 8px;
+  border-radius: 13px;
+  padding: 7px 6px;
+  font-size: 13px;
   border: 2px solid rgba(120, 60, 40, 0.1);
 }
 
@@ -1160,27 +1188,38 @@ body[data-menu-map="space"] .modal {
 }
 
 .awards-section {
-  margin: 14px 0 18px;
+  margin: 6px 0 6px;
 }
 
 .awards-section h3 {
-  margin: 0 0 10px;
-  font-size: 15px;
+  margin: 0 0 6px;
+  font-size: 13px;
   color: var(--muted);
 }
 
 .awards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
 }
 
 .award-card {
   background: #ffffff;
-  border-radius: 12px;
-  padding: 8px 10px;
-  font-size: 12.5px;
-  border: 1px solid rgba(120, 60, 40, 0.1);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1.5px solid rgba(120, 60, 40, 0.12);
+}
+
+.result-actions {
+  flex-shrink: 0;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(120, 60, 40, 0.1);
 }
 
 .modal-actions {
@@ -1389,6 +1428,65 @@ body[data-menu-map="space"] .modal {
   .map-card-tag {
     display: none;
   }
+  .modal.small-modal {
+    padding: 12px 16px;
+  }
+  .modal.result-modal {
+    width: min(760px, 100%);
+    max-height: 94dvh;
+    padding: 8px 12px;
+    border-radius: 18px;
+  }
+  .result-header {
+    margin-bottom: 5px;
+    gap: 8px;
+  }
+  .result-badge {
+    font-size: 24px;
+  }
+  .result-modal h2 {
+    font-size: 17px;
+  }
+  .result-sub {
+    font-size: 11px;
+  }
+  .scoreboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+  .score-pill {
+    padding: 4px 4px;
+    border-radius: 10px;
+    font-size: 11px;
+  }
+  .score-pill canvas {
+    width: 34px !important;
+    height: 34px !important;
+    margin-bottom: 2px !important;
+  }
+  .awards-section {
+    margin: 4px 0 2px;
+  }
+  .awards-section h3 {
+    display: none;
+  }
+  .awards-grid {
+    gap: 4px;
+  }
+  .award-card {
+    padding: 3px 7px;
+    font-size: 10px;
+  }
+  .result-actions {
+    margin-top: 6px;
+    padding-top: 6px;
+    gap: 8px;
+  }
+  .result-actions .secondary-btn {
+    padding: 6px 11px;
+    font-size: 12px;
+  }
   .event-banner {
     top: 2px;
     padding: 2px 10px;
@@ -1441,6 +1539,39 @@ body[data-menu-map="space"] .modal {
   }
   .map-card:first-child .map-card-thumb {
     max-width: 170px;
+  }
+  .modal.result-modal {
+    padding: 12px 12px;
+  }
+  .result-header {
+    margin-bottom: 8px;
+  }
+  .scoreboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .score-pill {
+    padding: 6px 5px;
+    font-size: 12px;
+  }
+  .score-pill canvas {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .award-card {
+    font-size: 10.5px;
+    padding: 3px 8px;
+  }
+  .result-actions {
+    gap: 6px;
+  }
+  .result-actions .primary-btn {
+    padding: 9px 16px;
+    font-size: 14px;
+  }
+  .result-actions .secondary-btn {
+    padding: 7px 10px;
+    font-size: 12px;
   }
   .hud-bar {
     gap: 4px;
