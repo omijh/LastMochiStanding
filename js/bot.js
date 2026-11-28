@@ -50,6 +50,7 @@ export function buildDangerSet(game, ignoreOwnerId = null) {
   }
 
   for (const sp of game.spikeTraps || []) {
+    if (sp.phase !== 'telegraph') continue;
     if (ignoreOwnerId !== null && sp.ownerId === ignoreOwnerId) continue;
     mark(sp.c, sp.r);
   }

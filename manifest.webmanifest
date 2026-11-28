@@ -3,6 +3,7 @@
   "short_name": "Last Mochi Standing",
   "description": "Cozy 2.5D Japanese café party brawler — Puff, Dash & Bowl!",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#fff1f5",
   "theme_color": "#fff1f5",

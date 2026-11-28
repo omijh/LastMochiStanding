@@ -49,6 +49,7 @@ function buildSpiralOrder() {
 }
 
 const SPIRAL_COORDS = buildSpiralOrder();
+const MAX_SPIKE_TRAPS = 4;
 
 export class GameEngine {
   constructor(sound, options = {}) {
@@ -928,6 +929,13 @@ export class GameEngine {
         if (this.caramelZones.some((z) => z.c === curC && z.r === curR && z.ownerId !== p.id)) {
           speedMult *= 0.8;
         }
+        if (
+          this.spikeTraps.some(
+            (sp) => sp.phase === 'active' && sp.c === curC && sp.r === curR && sp.ownerId !== p.id
+          )
+        ) {
+          speedMult *= 0.45;
+        }
 
         const effectiveSpeed = p.speed * speedMult;
         p.walkPhase += dt * (effectiveSpeed / 18);
@@ -1315,36 +1323,37 @@ export class GameEngine {
   }
 
   triggerRivalSpikes(p) {
-    const rivals = this.players.filter((pl) => pl.id !== p.id && pl.state === 'alive' && !pl.isCelebrating);
+    const target = this._pickNearestRival(p, false);
     const style = this.mapConfig?.spikeStyle || 'magma';
     const label =
       style === 'thorn' ? 'THORN SPIKES! 🌿' : style === 'plasma' ? 'PLASMA SPIKES! ⚡' : 'MAGMA SPIKES! 🌋';
     this.addPopup(p.x, p.y - 22, label, '#e11d48');
     this.sound?.playSpikeWarn();
 
-    if (rivals.length === 0) {
-      this.spawnSpikeAt(6, 5, p.id, p.char, style, 0.75);
+    if (!target) {
+      this.spawnSpikeAt(6, 5, p.id, p.char, style, 1.15);
       return;
     }
 
-    for (const rival of rivals) {
-      const rc = Math.max(1, Math.min(COLS - 2, Math.floor(rival.x / TILE)));
-      const rr = Math.max(1, Math.min(ROWS - 2, Math.floor(rival.y / TILE)));
-      this.spawnSpikeAt(rc, rr, p.id, p.char, style, 0.75);
-      this.pendingSpikeWaves.push({
-        delay: 0.45,
-        targetId: rival.id,
-        ownerId: p.id,
-        char: p.char,
-        style,
-      });
-    }
+    const rc = Math.max(1, Math.min(COLS - 2, Math.floor(target.x / TILE)));
+    const rr = Math.max(1, Math.min(ROWS - 2, Math.floor(target.y / TILE)));
+    this.spawnSpikeAt(rc, rr, p.id, p.char, style, 1.15);
+    this.pendingSpikeWaves.push({
+      delay: 0.55,
+      targetId: target.id,
+      ownerId: p.id,
+      char: p.char,
+      style,
+    });
   }
 
-  spawnSpikeAt(c, r, ownerId, char, style = 'magma', telegraph = 0.75) {
+  spawnSpikeAt(c, r, ownerId, char, style = 'magma', telegraph = 1.15) {
     if (c < 1 || c >= COLS - 1 || r < 1 || r >= ROWS - 1) return false;
     if (this.grid[r][c] !== TILE_TYPE.EMPTY) return false;
     if (this.spikeTraps.some((sp) => sp.c === c && sp.r === r)) return false;
+    while (this.spikeTraps.length >= MAX_SPIKE_TRAPS) {
+      this.spikeTraps.shift();
+    }
     this.spikeTraps.push({
       ownerId,
       char: char || { color: '#e11d48', accent: '#ffe4e6' },
@@ -1353,7 +1362,7 @@ export class GameEngine {
       phase: 'telegraph',
       timer: telegraph,
       maxTelegraph: telegraph,
-      activeDuration: 4.2,
+      activeDuration: 2.8,
       style,
       hitPlayers: new Set(),
     });
@@ -1371,7 +1380,7 @@ export class GameEngine {
       if (!rival || rival.state !== 'alive' || rival.isCelebrating) continue;
       const rc = Math.max(1, Math.min(COLS - 2, Math.floor(rival.x / TILE)));
       const rr = Math.max(1, Math.min(ROWS - 2, Math.floor(rival.y / TILE)));
-      if (!this.spawnSpikeAt(rc, rr, wave.ownerId, wave.char, wave.style, 0.75)) {
+      if (!this.spawnSpikeAt(rc, rr, wave.ownerId, wave.char, wave.style, 1.15)) {
         const fx = rival.facingX || 0;
         const fy = rival.facingY || 0;
         const candidates = [
@@ -1383,7 +1392,7 @@ export class GameEngine {
           [rc, rr - 1],
         ];
         for (const [nc, nr] of candidates) {
-          if (this.spawnSpikeAt(nc, nr, wave.ownerId, wave.char, wave.style, 0.75)) break;
+          if (this.spawnSpikeAt(nc, nr, wave.ownerId, wave.char, wave.style, 1.15)) break;
         }
       }
       this.sound?.playSpikeWarn();
@@ -1411,30 +1420,31 @@ export class GameEngine {
                 : ['#f97316', '#e11d48', '#fde047'],
             8
           );
-        }
-        continue;
-      }
 
-      if (this.roundResolveTimer < 0) {
-        const owner = sp.ownerId !== null ? this.players.find((pl) => pl.id === sp.ownerId) : null;
-        for (const pl of this.players) {
-          if (pl.id === sp.ownerId || pl.isCelebrating || pl.jumpTimer > 0) continue;
-          if (Math.floor(pl.x / TILE) !== sp.c || Math.floor(pl.y / TILE) !== sp.r) continue;
-          if (pl.state === 'alive' && pl.invulnTimer <= 0) {
-            this.puffPlayer(pl, owner, false);
-          } else if (
-            pl.state === 'mochi_ball' &&
-            pl.bowlVx === 0 &&
-            pl.bowlVy === 0 &&
-            !sp.hitPlayers.has(pl.id) &&
-            pl.mochiMaxTimer - pl.mochiTimer > 0.45
-          ) {
-            sp.hitPlayers.add(pl.id);
-            const dc = pl.facingX || 0;
-            const dr = pl.facingY || (dc === 0 ? 1 : 0);
-            this.launchMochiBall(pl, dc, dr, sp.ownerId, 'SPIKE BOWL! ⚡');
+          // Eruption tick puffs standing rivals (dash or jump passes safely!)
+          if (this.roundResolveTimer < 0) {
+            const owner = sp.ownerId !== null ? this.players.find((pl) => pl.id === sp.ownerId) : null;
+            for (const pl of this.players) {
+              if (pl.id === sp.ownerId || pl.isCelebrating || pl.jumpTimer > 0 || pl.dashTimer > 0) continue;
+              if (Math.floor(pl.x / TILE) !== sp.c || Math.floor(pl.y / TILE) !== sp.r) continue;
+              if (pl.state === 'alive' && pl.invulnTimer <= 0) {
+                this.puffPlayer(pl, owner, false);
+              } else if (
+                pl.state === 'mochi_ball' &&
+                pl.bowlVx === 0 &&
+                pl.bowlVy === 0 &&
+                !sp.hitPlayers.has(pl.id) &&
+                pl.mochiMaxTimer - pl.mochiTimer > 0.45
+              ) {
+                sp.hitPlayers.add(pl.id);
+                const dc = pl.facingX || 0;
+                const dr = pl.facingY || (dc === 0 ? 1 : 0);
+                this.launchMochiBall(pl, dc, dr, sp.ownerId, 'SPIKE BOWL! ⚡');
+              }
+            }
           }
         }
+        continue;
       }
 
       if (sp.timer <= 0) {
