@@ -11,11 +11,11 @@
   <title>Last Mochi Standing 🍡</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
-  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="manifest" href="manifest.webmanifest?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
   <div class="app-shell">
@@ -127,10 +127,35 @@
           <span class="best-of-label" id="best-of-label">Match Length:</span>
           <button class="choice-btn active" type="button" data-best="3" id="best-of-3">First to 2 👑</button>
           <button class="choice-btn" type="button" data-best="5" id="best-of-5">First to 3 👑</button>
+          <button class="choice-btn map-quick-btn" type="button" id="lobby-map-btn" title="Cycle Map Preview">🎲 Random</button>
         </div>
-        <button class="primary-btn" type="button" id="start-btn">Start Match!</button>
+        <button class="primary-btn" type="button" id="start-btn">Next: Choose Map →</button>
       </div>
       <div class="error-note" id="lobby-error" hidden></div>
+    </div>
+  </div>
+
+  <!-- Map Select Overlay (Step 2 after Character Select) -->
+  <div class="overlay" id="map-overlay" hidden>
+    <div class="modal map-modal">
+      <div class="modal-top map-modal-top">
+        <div class="brand-badge">🗺️</div>
+        <div>
+          <h2 id="map-select-title">Choose Arena</h2>
+          <p class="subtitle" id="map-select-sub">Default is Random (new arena each round), or pick your favorite map!</p>
+        </div>
+        <div class="modal-top-actions">
+          <button class="pill-btn lang-pill" type="button" id="map-lang-btn">EN / 日本語</button>
+        </div>
+      </div>
+
+      <div class="map-grid" id="map-grid"></div>
+
+      <div class="modal-actions map-actions">
+        <button class="secondary-btn" type="button" id="map-back-btn">← Characters</button>
+        <button class="primary-btn" type="button" id="map-start-btn">Start Match!</button>
+      </div>
+      <p class="overlay-gp-hint" id="map-gp-hint" hidden></p>
     </div>
   </div>
 
@@ -166,6 +191,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=4"></script>
+  <script type="module" src="js/main.js?v=5"></script>
 </body>
 </html>

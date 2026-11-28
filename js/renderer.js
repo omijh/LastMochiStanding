@@ -7,6 +7,7 @@ import {
   TILE,
   TILE_TYPE,
 } from './constants.js';
+import { getMapConfig } from './maps.js';
 
 export class GameRenderer {
   constructor(canvas) {
@@ -90,11 +91,15 @@ export class GameRenderer {
     }
 
     this.drawFloor(ctx, game);
+    this.drawBorderWildlife(ctx, game);
     this.drawSteamerCenter(ctx, game);
     this.drawKaitenBelts(ctx, game);
     this.drawCaramelZones(ctx, game);
     this.drawJellyPads(ctx, game);
+    this.drawSpikeTraps(ctx, game);
+    this.drawLaneSwoopTelegraphs(ctx, game);
     this.drawBombTelegraphs(ctx, game);
+    this.drawFloorSmashTelegraphs(ctx, game);
     this.drawSuddenWarnings(ctx, game);
     this.drawGridObjects(ctx, game);
     this.drawPowerups(ctx, game);
@@ -103,6 +108,8 @@ export class GameRenderer {
     this.drawBobaPearls(ctx, game);
     this.drawGhostProjectiles(ctx, game);
     this.drawPlayers(ctx, game);
+    this.drawLaneSwoopsActive(ctx, game);
+    this.drawFloorSmashImpacts(ctx, game);
     this.drawParticles(ctx, game);
     this.drawPopups(ctx, game);
 
@@ -194,7 +201,76 @@ export class GameRenderer {
 
   // ---------- Environment & Furniture ----------
 
-  drawFloor(ctx) {
+  drawFloor(ctx, game) {
+    const mapId = game?.mapId || 'cafe';
+    const palettes = {
+      cafe: {
+        borderA: '#d8b084',
+        borderB: '#cfa476',
+        borderLine: 'rgba(130, 82, 42, 0.22)',
+        bevelDark: '#9c6b3f',
+        bevelLight: 'rgba(255, 244, 224, 0.45)',
+        sideDark: '#a9794c',
+        floorA: '#fffaf3',
+        floorB: '#ffefe1',
+        gridLine: 'rgba(195, 148, 108, 0.14)',
+        centerA: '#eef5dc',
+        centerB: '#e4efd0',
+        centerStroke: '#65a30d',
+        centerInner: 'rgba(234, 179, 8, 0.55)',
+        ghostTrack: 'rgba(236, 72, 153, 0.24)',
+      },
+      prehistoric: {
+        borderA: '#57534e',
+        borderB: '#44403c',
+        borderLine: 'rgba(28, 25, 23, 0.3)',
+        bevelDark: '#292524',
+        bevelLight: 'rgba(163, 230, 53, 0.25)',
+        sideDark: '#3f3b37',
+        floorA: '#fef3c7',
+        floorB: '#fde68a',
+        gridLine: 'rgba(146, 64, 14, 0.14)',
+        centerA: '#d9f99d',
+        centerB: '#bef264',
+        centerStroke: '#65a30d',
+        centerInner: 'rgba(234, 88, 12, 0.55)',
+        ghostTrack: 'rgba(234, 88, 12, 0.26)',
+      },
+      night: {
+        borderA: '#1e1b4b',
+        borderB: '#172554',
+        borderLine: 'rgba(99, 102, 241, 0.28)',
+        bevelDark: '#0f172a',
+        bevelLight: 'rgba(129, 140, 248, 0.28)',
+        sideDark: '#1e293b',
+        floorA: '#334155',
+        floorB: '#3b4a62',
+        gridLine: 'rgba(148, 163, 184, 0.15)',
+        centerA: '#312e81',
+        centerB: '#3730a3',
+        centerStroke: '#a5b4fc',
+        centerInner: 'rgba(253, 224, 71, 0.55)',
+        ghostTrack: 'rgba(165, 180, 252, 0.26)',
+      },
+      space: {
+        borderA: '#17153b',
+        borderB: '#1e1b4b',
+        borderLine: 'rgba(168, 85, 247, 0.3)',
+        bevelDark: '#090d16',
+        bevelLight: 'rgba(56, 189, 248, 0.3)',
+        sideDark: '#1e1b4b',
+        floorA: '#2e3654',
+        floorB: '#363f63',
+        gridLine: 'rgba(125, 211, 252, 0.16)',
+        centerA: '#3b0764',
+        centerB: '#4c1d95',
+        centerStroke: '#38bdf8',
+        centerInner: 'rgba(232, 121, 249, 0.55)',
+        ghostTrack: 'rgba(56, 189, 248, 0.28)',
+      },
+    };
+    const pal = palettes[mapId] || palettes.cafe;
+
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const x = c * TILE;
@@ -202,32 +278,47 @@ export class GameRenderer {
         const isBorder = r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1;
 
         if (isBorder) {
-          // 2.5D Wooden Café Counter Perimeter
-          ctx.fillStyle = (r + c) % 2 === 0 ? '#d8b084' : '#cfa476';
+          ctx.fillStyle = (r + c) % 2 === 0 ? pal.borderA : pal.borderB;
           ctx.fillRect(x, y, TILE, TILE);
 
-          // Wood grain plank lines
-          ctx.strokeStyle = 'rgba(120, 72, 32, 0.14)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(x + 4, y + 16);
-          ctx.lineTo(x + TILE - 4, y + 16);
-          ctx.moveTo(x + 8, y + 36);
-          ctx.lineTo(x + TILE - 6, y + 36);
-          ctx.stroke();
+          if (mapId === 'cafe') {
+            ctx.strokeStyle = 'rgba(120, 72, 32, 0.14)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x + 4, y + 16);
+            ctx.lineTo(x + TILE - 4, y + 16);
+            ctx.moveTo(x + 8, y + 36);
+            ctx.lineTo(x + TILE - 6, y + 36);
+            ctx.stroke();
+          } else if (mapId === 'prehistoric') {
+            // Subtle stone crack & fern tufts
+            ctx.fillStyle = 'rgba(132, 204, 22, 0.25)';
+            ctx.fillRect(x + 6, y + 8, 12, 4);
+            ctx.fillStyle = 'rgba(28, 25, 23, 0.25)';
+            ctx.fillRect(x + 28, y + 34, 14, 3);
+          } else if (mapId === 'night') {
+            // Subtle grass blades & stars
+            ctx.fillStyle = 'rgba(199, 210, 254, 0.35)';
+            if ((r * 7 + c * 11) % 3 === 0) {
+              this.drawStar(ctx, x + 14, y + 14, 3, 1, 4);
+              ctx.fill();
+            }
+          } else if (mapId === 'space') {
+            // Twinkling starfield specks
+            ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(255,255,255,0.6)' : 'rgba(125,211,252,0.5)';
+            ctx.fillRect(x + ((c * 17 + r * 9) % 40) + 6, y + ((c * 13 + r * 23) % 38) + 6, 2.5, 2.5);
+          }
 
-          // Subtle tile seam
-          ctx.strokeStyle = 'rgba(130, 82, 42, 0.22)';
+          ctx.strokeStyle = pal.borderLine;
+          ctx.lineWidth = 1;
           ctx.strokeRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1);
 
-          // 2.5D inner counter edge bevel
           if (r === 0 && c > 0 && c < COLS - 1) {
-            ctx.fillStyle = '#9c6b3f';
+            ctx.fillStyle = pal.bevelDark;
             ctx.fillRect(x, y + TILE - 7, TILE, 7);
-            ctx.fillStyle = 'rgba(255, 244, 224, 0.4)';
+            ctx.fillStyle = pal.bevelLight;
             ctx.fillRect(x, y + TILE - 9, TILE, 2);
-            // Cute placemat accents along top counter
-            if (c === 2 || c === 4 || c === 8 || c === 10) {
+            if (mapId === 'cafe' && (c === 2 || c === 4 || c === 8 || c === 10)) {
               ctx.fillStyle = '#fdf2f8';
               this.roundRect(ctx, x + 10, y + 10, TILE - 20, TILE - 24, 5);
               ctx.fill();
@@ -236,35 +327,50 @@ export class GameRenderer {
               ctx.stroke();
             }
           } else if (r === ROWS - 1 && c > 0 && c < COLS - 1) {
-            ctx.fillStyle = 'rgba(255, 244, 224, 0.45)';
+            ctx.fillStyle = pal.bevelLight;
             ctx.fillRect(x, y, TILE, 4);
-            ctx.fillStyle = '#a47449';
+            ctx.fillStyle = pal.sideDark;
             ctx.fillRect(x, y + TILE - 5, TILE, 5);
           } else if (c === 0 && r > 0 && r < ROWS - 1) {
-            ctx.fillStyle = '#a9794c';
+            ctx.fillStyle = pal.sideDark;
             ctx.fillRect(x + TILE - 6, y, 6, TILE);
           } else if (c === COLS - 1 && r > 0 && r < ROWS - 1) {
-            ctx.fillStyle = '#a9794c';
+            ctx.fillStyle = pal.sideDark;
             ctx.fillRect(x, y, 6, TILE);
           }
         } else {
-          const inTatami = c >= 5 && c <= 7 && r >= 4 && r <= 6;
-          if (inTatami) {
-            ctx.fillStyle = (r + c) % 2 === 0 ? '#eef5dc' : '#e4efd0';
+          const inCenter = c >= 5 && c <= 7 && r >= 4 && r <= 6;
+          if (inCenter) {
+            ctx.fillStyle = (r + c) % 2 === 0 ? pal.centerA : pal.centerB;
             ctx.fillRect(x, y, TILE, TILE);
-            // Fine tatami reed weave lines
-            ctx.strokeStyle = 'rgba(132, 169, 92, 0.16)';
-            ctx.lineWidth = 1;
-            for (let ly = y + 7; ly < y + TILE; ly += 8) {
-              ctx.beginPath();
-              ctx.moveTo(x + 2, ly);
-              ctx.lineTo(x + TILE - 2, ly);
-              ctx.stroke();
+            if (mapId === 'cafe') {
+              ctx.strokeStyle = 'rgba(132, 169, 92, 0.16)';
+              ctx.lineWidth = 1;
+              for (let ly = y + 7; ly < y + TILE; ly += 8) {
+                ctx.beginPath();
+                ctx.moveTo(x + 2, ly);
+                ctx.lineTo(x + TILE - 2, ly);
+                ctx.stroke();
+              }
             }
           } else {
-            ctx.fillStyle = (r + c) % 2 === 0 ? '#fffaf3' : '#ffefe1';
+            ctx.fillStyle = (r + c) % 2 === 0 ? pal.floorA : pal.floorB;
             ctx.fillRect(x, y, TILE, TILE);
-            ctx.strokeStyle = 'rgba(195, 148, 108, 0.14)';
+            if (mapId === 'prehistoric' && (r * 5 + c * 3) % 7 === 0) {
+              ctx.fillStyle = 'rgba(217, 119, 6, 0.14)';
+              this.roundRect(ctx, x + 12, y + 18, 12, 7, 3);
+              ctx.fill();
+            } else if (mapId === 'space' && (r + c) % 3 === 0) {
+              ctx.strokeStyle = 'rgba(56, 189, 248, 0.16)';
+              ctx.lineWidth = 1.2;
+              this.roundRect(ctx, x + 8, y + 8, TILE - 16, TILE - 16, 8);
+              ctx.stroke();
+            } else if (mapId === 'night' && (r * 3 + c * 5) % 6 === 0) {
+              ctx.fillStyle = 'rgba(165, 180, 252, 0.12)';
+              this.drawDiamond(ctx, x + 28, y + 28, 7, 4);
+              ctx.fill();
+            }
+            ctx.strokeStyle = pal.gridLine;
             ctx.lineWidth = 1;
             ctx.strokeRect(x + 0.5, y + 0.5, TILE - 1, TILE - 1);
           }
@@ -272,19 +378,17 @@ export class GameRenderer {
       }
     }
 
-    // Woven dark-green & gold tatami border around the center 3x3 zone
     ctx.save();
-    ctx.strokeStyle = '#65a30d';
+    ctx.strokeStyle = pal.centerStroke;
     ctx.lineWidth = 3;
     ctx.strokeRect(5 * TILE + 1.5, 4 * TILE + 1.5, 3 * TILE - 3, 3 * TILE - 3);
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.55)';
+    ctx.strokeStyle = pal.centerInner;
     ctx.lineWidth = 1.2;
     ctx.strokeRect(5 * TILE + 4.5, 4 * TILE + 4.5, 3 * TILE - 9, 3 * TILE - 9);
     ctx.restore();
 
-    // Subtle Ghost Waiter perimeter track dashed guideline
     ctx.save();
-    ctx.strokeStyle = 'rgba(236, 72, 153, 0.24)';
+    ctx.strokeStyle = pal.ghostTrack;
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 6]);
     this.roundRect(ctx, TILE * 0.5, TILE * 0.5, (COLS - 1) * TILE, (ROWS - 1) * TILE, 10);
@@ -297,64 +401,99 @@ export class GameRenderer {
     const cy = 5.5 * TILE;
     const box = 46;
     const half = box / 2;
+    const mapId = game?.mapId || 'cafe';
 
     ctx.save();
-    // Drop shadow
-    ctx.fillStyle = 'rgba(100, 60, 20, 0.18)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
     this.roundRect(ctx, cx - half, cy - half + 4, box, box, 7);
     ctx.fill();
 
-    // 2.5D Cedar lower wall
-    ctx.fillStyle = '#92400e';
-    this.roundRect(ctx, cx - half, cy - half + 2, box, box, 7);
-    ctx.fill();
-
-    // Top Hinoki wood steamer frame
-    ctx.fillStyle = '#d97706';
-    this.roundRect(ctx, cx - half, cy - half - 2, box, box - 2, 7);
-    ctx.fill();
-    ctx.strokeStyle = '#78350f';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Inner bamboo steamer cavity & slatted grate bars
-    ctx.fillStyle = '#fef3c7';
-    this.roundRect(ctx, cx - half + 6, cy - half + 4, box - 12, box - 14, 4);
-    ctx.fill();
-
-    ctx.strokeStyle = '#e5b869';
-    ctx.lineWidth = 2;
-    for (let sy = cy - 12; sy <= cy + 10; sy += 7) {
-      ctx.beginPath();
-      ctx.moveTo(cx - half + 8, sy);
-      ctx.lineTo(cx + half - 8, sy);
+    if (mapId === 'prehistoric') {
+      ctx.fillStyle = '#57534e';
+      this.roundRect(ctx, cx - half, cy - half + 2, box, box, 12);
+      ctx.fill();
+      ctx.fillStyle = '#a8a29e';
+      this.roundRect(ctx, cx - half, cy - half - 2, box, box - 2, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#44403c';
+      ctx.lineWidth = 2;
       ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      this.roundRect(ctx, cx - half + 6, cy - half + 4, box - 12, box - 14, 8);
+      ctx.fill();
+    } else if (mapId === 'night') {
+      ctx.fillStyle = '#1e1b4b';
+      this.roundRect(ctx, cx - half, cy - half + 2, box, box, 10);
+      ctx.fill();
+      ctx.fillStyle = '#4338ca';
+      this.roundRect(ctx, cx - half, cy - half - 2, box, box - 2, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#a5b4fc';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#312e81';
+      this.roundRect(ctx, cx - half + 6, cy - half + 4, box - 12, box - 14, 7);
+      ctx.fill();
+    } else if (mapId === 'space') {
+      ctx.fillStyle = '#1e1b4b';
+      this.roundRect(ctx, cx - half, cy - half + 2, box, box, 10);
+      ctx.fill();
+      ctx.fillStyle = '#4c1d95';
+      this.roundRect(ctx, cx - half, cy - half - 2, box, box - 2, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#0f172a';
+      this.roundRect(ctx, cx - half + 6, cy - half + 4, box - 12, box - 14, 7);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#92400e';
+      this.roundRect(ctx, cx - half, cy - half + 2, box, box, 7);
+      ctx.fill();
+
+      ctx.fillStyle = '#d97706';
+      this.roundRect(ctx, cx - half, cy - half - 2, box, box - 2, 7);
+      ctx.fill();
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fef3c7';
+      this.roundRect(ctx, cx - half + 6, cy - half + 4, box - 12, box - 14, 4);
+      ctx.fill();
+
+      ctx.strokeStyle = '#e5b869';
+      ctx.lineWidth = 2;
+      for (let sy = cy - 12; sy <= cy + 10; sy += 7) {
+        ctx.beginPath();
+        ctx.moveTo(cx - half + 8, sy);
+        ctx.lineTo(cx + half - 8, sy);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#78350f';
+      [
+        [cx - half + 1, cy - half - 1],
+        [cx + half - 6, cy - half - 1],
+        [cx - half + 1, cy + half - 8],
+        [cx + half - 6, cy + half - 8],
+      ].forEach(([jx, jy]) => {
+        ctx.fillRect(jx, jy, 5, 5);
+      });
     }
 
-    // Corner mortise joints
-    ctx.fillStyle = '#78350f';
-    [
-      [cx - half + 1, cy - half - 1],
-      [cx + half - 6, cy - half - 1],
-      [cx - half + 1, cy + half - 8],
-      [cx + half - 6, cy + half - 8],
-    ].forEach(([jx, jy]) => {
-      ctx.fillRect(jx, jy, 5, 5);
-    });
-
     if (!game.goldenMochi) {
-      // Rectangular progress bar along top & perimeter rim
       const pct = Math.max(0, Math.min(1, 1 - game.steamerTimer / STEAMER_INTERVAL));
       const barW = box - 10;
-      ctx.fillStyle = 'rgba(120, 53, 15, 0.28)';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.35)';
       this.roundRect(ctx, cx - barW / 2, cy + half - 7, barW, 4, 2);
       ctx.fill();
-      ctx.fillStyle = '#facc15';
+      ctx.fillStyle = mapId === 'space' ? '#38bdf8' : '#facc15';
       this.roundRect(ctx, cx - barW / 2, cy + half - 7, barW * pct, 4, 2);
       ctx.fill();
 
-      // Rising wavy steam ribbons (no circles!)
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.78)';
+      ctx.strokeStyle = mapId === 'space' ? 'rgba(125, 211, 252, 0.8)' : 'rgba(255, 255, 255, 0.78)';
       ctx.lineWidth = 2.2;
       ctx.lineCap = 'round';
       for (let i = -1; i <= 1; i++) {
@@ -370,10 +509,7 @@ export class GameRenderer {
       }
       ctx.globalAlpha = 1;
     } else {
-      // Black lacquer tray + green bamboo leaf + Golden Daifuku with crown!
       const bob = Math.sin(game.goldenMochi.bobPhase) * 3;
-
-      // Soft pulsing diamond glow
       const glow = 0.6 + 0.4 * Math.sin(game.elapsed * 7);
       ctx.fillStyle = `rgba(250, 204, 21, ${0.28 * glow})`;
       this.drawDiamond(ctx, cx, cy - 2, 26, 22);
@@ -382,35 +518,52 @@ export class GameRenderer {
       ctx.save();
       ctx.translate(cx, cy - 2 + bob);
 
-      // Lacquer tray
       ctx.fillStyle = '#1e293b';
       this.roundRect(ctx, -18, 4, 36, 10, 4);
       ctx.fill();
-      ctx.strokeStyle = '#ca8a04';
+      ctx.strokeStyle = mapId === 'space' ? '#38bdf8' : '#ca8a04';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      // Bamboo leaf
-      ctx.fillStyle = '#22c55e';
-      this.drawLeafPath(ctx, 0, 6, 32, 9);
-      ctx.fill();
+      if (mapId === 'space') {
+        ctx.fillStyle = '#fde047';
+        this.drawStar(ctx, 0, -3, 14, 6, 5);
+        ctx.fill();
+        ctx.strokeStyle = '#ea580c';
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+      } else if (mapId === 'prehistoric') {
+        ctx.fillStyle = '#fde047';
+        this.roundRect(ctx, -10, -14, 20, 22, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#ea580c';
+        this.drawDiamond(ctx, -3, -4, 3, 4);
+        ctx.fill();
+        this.drawDiamond(ctx, 4, 1, 2.5, 3);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = mapId === 'night' ? '#818cf8' : '#22c55e';
+        this.drawLeafPath(ctx, 0, 6, 32, 9);
+        ctx.fill();
 
-      // Golden Daifuku silhouette
-      ctx.fillStyle = '#fde047';
-      this.drawDaifukuPath(ctx, 0, 0, 14, 11);
-      ctx.fill();
-      ctx.strokeStyle = '#b45309';
-      ctx.lineWidth = 2;
-      ctx.stroke();
+        ctx.fillStyle = '#fde047';
+        this.drawDaifukuPath(ctx, 0, 0, 14, 11);
+        ctx.fill();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-      // Curved glaze highlight
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-7, -5);
-      ctx.quadraticCurveTo(-4, -8, -1, -7);
-      ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-7, -5);
+        ctx.quadraticCurveTo(-4, -8, -1, -7);
+        ctx.stroke();
+      }
 
       // Royal crown
       ctx.fillStyle = '#f59e0b';
@@ -428,7 +581,6 @@ export class GameRenderer {
       ctx.lineWidth = 1.2;
       ctx.stroke();
 
-      // 4-point star sparkles
       ctx.fillStyle = '#ffffff';
       this.drawStar(ctx, -14, -10, 4.5, 1.4, 4);
       ctx.fill();
@@ -442,6 +594,7 @@ export class GameRenderer {
 
   drawKaitenBelts(ctx, game) {
     if (game.kaitenTimer <= 0) return;
+    const isSpace = game?.mapId === 'space';
     const belts = [
       { r: 3, dir: 1 },
       { r: 7, dir: -1 },
@@ -449,14 +602,14 @@ export class GameRenderer {
     for (const belt of belts) {
       const y = belt.r * TILE;
       ctx.save();
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.16)';
+      ctx.fillStyle = isSpace ? 'rgba(168, 85, 247, 0.2)' : 'rgba(56, 189, 248, 0.16)';
       ctx.fillRect(TILE, y + 4, (COLS - 2) * TILE, TILE - 8);
-      ctx.strokeStyle = 'rgba(14, 165, 233, 0.45)';
+      ctx.strokeStyle = isSpace ? 'rgba(56, 189, 248, 0.55)' : 'rgba(14, 165, 233, 0.45)';
       ctx.lineWidth = 2;
       ctx.strokeRect(TILE, y + 4, (COLS - 2) * TILE, TILE - 8);
 
       const phase = (((game.elapsed * 48 * belt.dir) % 36) + 36) % 36;
-      ctx.strokeStyle = 'rgba(14, 165, 233, 0.6)';
+      ctx.strokeStyle = isSpace ? 'rgba(192, 132, 252, 0.72)' : 'rgba(14, 165, 233, 0.6)';
       ctx.lineWidth = 2.5;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -651,6 +804,7 @@ export class GameRenderer {
   }
 
   drawGridObjects(ctx, game) {
+    const mapId = game?.mapId || 'cafe';
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const tile = game.grid[r][c];
@@ -662,42 +816,120 @@ export class GameRenderer {
         if (tile === TILE_TYPE.WALL) {
           if (isBorder) {
             if ((r === 0 || r === ROWS - 1) && (c === 0 || c === COLS - 1)) {
-              // Wooden corner counter post
-              ctx.fillStyle = '#b48356';
+              ctx.fillStyle =
+                mapId === 'space'
+                  ? '#4c1d95'
+                  : mapId === 'night'
+                    ? '#312e81'
+                    : mapId === 'prehistoric'
+                      ? '#44403c'
+                      : '#b48356';
               this.roundRect(ctx, x + 6, y + 6, TILE - 12, TILE - 12, 8);
               ctx.fill();
-              ctx.strokeStyle = '#8b5e34';
+              ctx.strokeStyle =
+                mapId === 'space'
+                  ? '#38bdf8'
+                  : mapId === 'night'
+                    ? '#818cf8'
+                    : mapId === 'prehistoric'
+                      ? '#78716c'
+                      : '#8b5e34';
               ctx.lineWidth = 2;
               ctx.stroke();
             }
           } else {
-            this.drawPillar(ctx, x, y);
+            this.drawPillar(ctx, x, y, game);
           }
         } else if (tile === TILE_TYPE.BUMPER) {
           this.drawBumper(ctx, x, y, game);
         } else if (tile === TILE_TYPE.CRATE) {
-          this.drawCrate(ctx, x, y, (r + c) % 2 === 0);
+          this.drawCrate(ctx, x, y, (r + c) % 2 === 0, game);
         } else if (tile === TILE_TYPE.SUDDEN_WALL) {
-          this.drawSuddenBox(ctx, x, y);
+          this.drawSuddenBox(ctx, x, y, game);
         }
       }
     }
   }
 
-  drawPillar(ctx, x, y) {
-    // 2.5D Cozy Café Table with table runner & rectangular bonsai tray
+  drawPillar(ctx, x, y, game = null) {
+    const mapId = game?.mapId || 'cafe';
     ctx.save();
-    // Floor shadow
-    ctx.fillStyle = 'rgba(110, 75, 45, 0.16)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
     this.roundRect(ctx, x + 5, y + 11, TILE - 10, TILE - 11, 10);
     ctx.fill();
 
-    // 2.5D Dark wood front apron
+    if (mapId === 'prehistoric') {
+      // 2.5D Prehistoric Jungle Boulder & Fern
+      ctx.fillStyle = '#57534e';
+      this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 13);
+      ctx.fill();
+      ctx.fillStyle = '#a8a29e';
+      this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 13);
+      ctx.fill();
+      ctx.strokeStyle = '#44403c';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#65a30d';
+      this.drawLeafPath(ctx, x + 22, y + 18, 12, 6);
+      ctx.fill();
+      this.drawLeafPath(ctx, x + 33, y + 19, 11, 6);
+      ctx.fill();
+      ctx.fillStyle = '#bef264';
+      this.drawDiamond(ctx, x + 28, y + 30, 5, 3);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    if (mapId === 'night') {
+      // 2.5D Moonlit Hollow Tree Stump & Firefly Moss
+      ctx.fillStyle = '#3f2e21';
+      this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 11);
+      ctx.fill();
+      ctx.fillStyle = '#312e81';
+      this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 11);
+      ctx.fill();
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#14b8a6';
+      this.drawLeafPath(ctx, x + 22, y + 19, 13, 7);
+      ctx.fill();
+      this.drawLeafPath(ctx, x + 34, y + 20, 11, 6);
+      ctx.fill();
+      ctx.fillStyle = '#fde047';
+      this.drawStar(ctx, x + 28, y + 27, 4.5, 1.5, 4);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    if (mapId === 'space') {
+      // 2.5D Lunar Base Monolith Crate with Neon Plasma Core
+      ctx.fillStyle = '#1e1b4b';
+      this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 9);
+      ctx.fill();
+      ctx.fillStyle = '#475569';
+      this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 9);
+      ctx.fill();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#0f172a';
+      this.roundRect(ctx, x + 15, y + 13, TILE - 30, TILE - 32, 5);
+      ctx.fill();
+      ctx.fillStyle = '#a855f7';
+      this.drawDiamond(ctx, x + 28, y + 25, 7, 7);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    // Café Table
     ctx.fillStyle = '#92400e';
     this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 9);
     ctx.fill();
 
-    // Tabletop surface
     ctx.fillStyle = '#e7ddd3';
     this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 9);
     ctx.fill();
@@ -705,14 +937,12 @@ export class GameRenderer {
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Draped café table runner strip
     ctx.fillStyle = '#fdf2f8';
     ctx.fillRect(x + 20, y + 6, 16, TILE - 17);
     ctx.fillStyle = '#f9a8d4';
     ctx.fillRect(x + 20, y + 6, 2.5, TILE - 17);
     ctx.fillRect(x + 33.5, y + 6, 2.5, TILE - 17);
 
-    // Rectangular bonsai planter pot + faceted leaves
     ctx.fillStyle = '#b45309';
     this.roundRect(ctx, x + 18, y + 21, 20, 12, 3);
     ctx.fill();
@@ -728,7 +958,7 @@ export class GameRenderer {
   }
 
   drawBumper(ctx, x, y, game) {
-    // 2.5D Quilted Sakura Zabuton Cushion (replaces circle bumper!)
+    const mapId = game?.mapId || 'cafe';
     const cx = x + TILE / 2;
     const cy = y + TILE / 2;
     const pulse = 1 + Math.sin(game.elapsed * 4.5) * 0.035;
@@ -737,17 +967,81 @@ export class GameRenderer {
     ctx.translate(cx, cy);
     ctx.scale(pulse, pulse);
 
-    // Floor shadow
+    if (mapId === 'prehistoric') {
+      // Glowing Amber Fossil Crystal Bumper
+      ctx.fillStyle = 'rgba(234, 88, 12, 0.25)';
+      this.roundRect(ctx, -20, -14, 40, 36, 10);
+      ctx.fill();
+      ctx.fillStyle = '#c2410c';
+      this.roundRect(ctx, -19, -15, 38, 34, 10);
+      ctx.fill();
+      ctx.fillStyle = '#fbbf24';
+      this.roundRect(ctx, -19, -19, 38, 33, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#ea580c';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.fillStyle = '#7c2d12';
+      this.drawStar(ctx, 0, -3, 8, 3.5, 4);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    if (mapId === 'night') {
+      // Glowing Moon-Mushroom Bounce Cap
+      ctx.fillStyle = 'rgba(99, 102, 241, 0.28)';
+      this.roundRect(ctx, -20, -14, 40, 36, 12);
+      ctx.fill();
+      ctx.fillStyle = '#4338ca';
+      this.roundRect(ctx, -19, -15, 38, 34, 12);
+      ctx.fill();
+      ctx.fillStyle = '#818cf8';
+      this.roundRect(ctx, -19, -19, 38, 33, 12);
+      ctx.fill();
+      ctx.strokeStyle = '#c7d2fe';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.fillStyle = '#fef08a';
+      this.drawStar(ctx, -7, -6, 3.5, 1.4, 4);
+      ctx.fill();
+      this.drawStar(ctx, 7, -2, 4, 1.5, 4);
+      ctx.fill();
+      this.drawStar(ctx, -2, 6, 3, 1.2, 4);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    if (mapId === 'space') {
+      // Neon Plasma Repulsor Bumper
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+      this.roundRect(ctx, -20, -14, 40, 36, 10);
+      ctx.fill();
+      ctx.fillStyle = '#7e22ce';
+      this.roundRect(ctx, -19, -15, 38, 34, 10);
+      ctx.fill();
+      ctx.fillStyle = '#22d3ee';
+      this.roundRect(ctx, -19, -19, 38, 33, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.fillStyle = '#f0abfc';
+      this.drawDiamond(ctx, 0, -3, 9, 9);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
     ctx.fillStyle = 'rgba(190, 24, 93, 0.18)';
     this.roundRect(ctx, -20, -14, 40, 36, 9);
     ctx.fill();
 
-    // 2.5D Cushion side base
     ctx.fillStyle = '#be185d';
     this.roundRect(ctx, -19, -15, 38, 34, 9);
     ctx.fill();
 
-    // Cushion plush top
     ctx.fillStyle = '#fbcfe8';
     this.roundRect(ctx, -19, -19, 38, 33, 9);
     ctx.fill();
@@ -755,13 +1049,11 @@ export class GameRenderer {
     ctx.lineWidth = 2.2;
     ctx.stroke();
 
-    // Inner quilted border
     ctx.strokeStyle = 'rgba(236, 72, 153, 0.35)';
     ctx.lineWidth = 1.2;
     this.roundRect(ctx, -13, -13, 26, 21, 5);
     ctx.stroke();
 
-    // 4 Golden corner tassels (small diamonds at corners)
     ctx.fillStyle = '#facc15';
     [
       [-18, -18],
@@ -773,7 +1065,6 @@ export class GameRenderer {
       ctx.fill();
     });
 
-    // 5-petal pointed sakura emblem in center
     ctx.fillStyle = '#ec4899';
     for (let i = 0; i < 5; i++) {
       const ang = (Math.PI * 2 * i) / 5 - Math.PI / 2;
@@ -791,14 +1082,120 @@ export class GameRenderer {
     ctx.restore();
   }
 
-  drawCrate(ctx, x, y, isPastry) {
+  drawCrate(ctx, x, y, isPastry, game = null) {
+    const mapId = game?.mapId || 'cafe';
     ctx.save();
-    ctx.fillStyle = 'rgba(120, 85, 60, 0.16)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
     this.roundRect(ctx, x + 6, y + 10, TILE - 12, TILE - 11, 10);
     ctx.fill();
 
+    if (mapId === 'prehistoric') {
+      if (isPastry) {
+        // Dino Egg Pod Crate
+        ctx.fillStyle = '#65a30d';
+        this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 12);
+        ctx.fill();
+        ctx.fillStyle = '#ecfccb';
+        this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#84cc16';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#ea580c';
+        this.drawDiamond(ctx, x + 22, y + 20, 4, 5);
+        ctx.fill();
+        this.drawDiamond(ctx, x + 34, y + 26, 3.5, 4);
+        ctx.fill();
+      } else {
+        // Mossy Timber Crate
+        ctx.fillStyle = '#9a3412';
+        this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 9);
+        ctx.fill();
+        ctx.fillStyle = '#fdba74';
+        this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 9);
+        ctx.fill();
+        ctx.strokeStyle = '#c2410c';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#84cc16';
+        this.drawLeafPath(ctx, x + 28, y + 16, 16, 6);
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+
+    if (mapId === 'night') {
+      if (isPastry) {
+        // Glowing Firefly Lantern Crate
+        ctx.fillStyle = '#b45309';
+        this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 9);
+        ctx.fill();
+        ctx.fillStyle = '#fef08a';
+        this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 9);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        this.drawStar(ctx, x + 28, y + 23, 8, 3, 4);
+        ctx.fill();
+      } else {
+        // Moonlit Acorn Chest
+        ctx.fillStyle = '#4c1d95';
+        this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 9);
+        ctx.fill();
+        ctx.fillStyle = '#c4b5fd';
+        this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 9);
+        ctx.fill();
+        ctx.strokeStyle = '#7c3aed';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#4c1d95';
+        this.roundRect(ctx, x + 16, y + 19, TILE - 32, 6, 3);
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+
+    if (mapId === 'space') {
+      if (isPastry) {
+        // Starlight Supply Capsule
+        ctx.fillStyle = '#0284c7';
+        this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 10);
+        ctx.fill();
+        ctx.fillStyle = '#bae6fd';
+        this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 10);
+        ctx.fill();
+        ctx.strokeStyle = '#0ea5e9';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#f43f5e';
+        this.drawStar(ctx, x + 28, y + 23, 7, 2.5, 4);
+        ctx.fill();
+      } else {
+        // Asteroid Meteor Rock Crate
+        ctx.fillStyle = '#6d28d9';
+        this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 12);
+        ctx.fill();
+        ctx.fillStyle = '#ddd6fe';
+        this.roundRect(ctx, x + 6, y + 5, TILE - 12, TILE - 16, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#8b5cf6';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#a78bfa';
+        this.drawDiamond(ctx, x + 21, y + 20, 4, 4);
+        ctx.fill();
+        this.drawDiamond(ctx, x + 34, y + 27, 3, 3);
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
+
     if (isPastry) {
-      // 2.5D Strawberry Patisserie Cake Box with ribbon bow
       ctx.fillStyle = '#db2777';
       this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 9);
       ctx.fill();
@@ -810,12 +1207,10 @@ export class GameRenderer {
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Crossed cream ribbon
       ctx.fillStyle = '#fdf2f8';
       ctx.fillRect(x + 24, y + 6, 8, TILE - 18);
       ctx.fillRect(x + 7, y + 20, TILE - 14, 7);
 
-      // Cute 2-loop bow on top
       ctx.fillStyle = '#f472b6';
       this.drawLeafPath(ctx, x + 23, y + 23, 10, 6);
       ctx.fill();
@@ -825,7 +1220,6 @@ export class GameRenderer {
       this.drawDiamond(ctx, x + 28, y + 23, 3, 3);
       ctx.fill();
     } else {
-      // 2.5D Slatted Wooden Delivery Crate with red shop seal
       ctx.fillStyle = '#b45309';
       this.roundRect(ctx, x + 6, y + 8, TILE - 12, TILE - 12, 9);
       ctx.fill();
@@ -846,7 +1240,6 @@ export class GameRenderer {
       ctx.lineTo(x + TILE - 11, y + 28);
       ctx.stroke();
 
-      // Tiny crimson shop stamp
       ctx.fillStyle = '#e11d48';
       this.roundRect(ctx, x + 35, y + 10, 8, 10, 2);
       ctx.fill();
@@ -854,16 +1247,17 @@ export class GameRenderer {
     ctx.restore();
   }
 
-  drawSuddenBox(ctx, x, y) {
+  drawSuddenBox(ctx, x, y, game = null) {
+    const mapId = game?.mapId || 'cafe';
     ctx.save();
-    ctx.fillStyle = '#be123c';
+    ctx.fillStyle = mapId === 'space' ? '#7e22ce' : '#be123c';
     this.roundRect(ctx, x + 4, y + 6, TILE - 8, TILE - 8, 9);
     ctx.fill();
 
-    ctx.fillStyle = '#fca5a5';
+    ctx.fillStyle = mapId === 'space' ? '#e879f9' : '#fca5a5';
     this.roundRect(ctx, x + 4, y + 3, TILE - 8, TILE - 11, 9);
     ctx.fill();
-    ctx.strokeStyle = '#e11d48';
+    ctx.strokeStyle = mapId === 'space' ? '#a855f7' : '#e11d48';
     ctx.lineWidth = 2.2;
     ctx.stroke();
 
@@ -883,6 +1277,9 @@ export class GameRenderer {
         speed: '#ec4899',
         kick: '#06b6d4',
         shield: '#8b5cf6',
+        floor_smash: '#ea580c',
+        rival_spikes: '#e11d48',
+        lane_swoop: '#6366f1',
       };
       const col = colors[pu.type] || '#f59e0b';
 
@@ -963,6 +1360,60 @@ export class GameRenderer {
         ctx.lineTo(12, -4);
         ctx.lineTo(8, -1);
         ctx.stroke();
+      } else if (pu.type === 'floor_smash') {
+        const isMeteor = game?.mapConfig?.smashStyle === 'meteor';
+        if (isMeteor) {
+          // Blazing Meteor Gem + Shockwave
+          ctx.fillStyle = '#a855f7';
+          this.drawDiamond(ctx, 0, -2, 10, 10);
+          ctx.fill();
+          ctx.fillStyle = '#fde047';
+          this.drawStar(ctx, 0, -2, 6, 2.2, 4);
+          ctx.fill();
+        } else {
+          // Dino Foot Slam
+          ctx.fillStyle = '#ea580c';
+          this.roundRect(ctx, -8, -4, 16, 12, 4);
+          ctx.fill();
+          [-5, 0, 5].forEach((tx) => {
+            ctx.beginPath();
+            ctx.moveTo(tx - 2, -4);
+            ctx.lineTo(tx, -11);
+            ctx.lineTo(tx + 2, -4);
+            ctx.fill();
+          });
+        }
+      } else if (pu.type === 'rival_spikes') {
+        const spStyle = game?.mapConfig?.spikeStyle || 'magma';
+        ctx.fillStyle = spStyle === 'thorn' ? '#16a34a' : spStyle === 'plasma' ? '#a855f7' : '#e11d48';
+        [-6, 0, 6].forEach((sx, idx) => {
+          const topY = idx === 1 ? -11 : -7;
+          ctx.beginPath();
+          ctx.moveTo(sx - 4, 8);
+          ctx.lineTo(sx, topY);
+          ctx.lineTo(sx + 4, 8);
+          ctx.closePath();
+          ctx.fill();
+        });
+      } else if (pu.type === 'lane_swoop') {
+        const isUfo = game?.mapConfig?.swoopStyle === 'ufo';
+        if (isUfo) {
+          ctx.fillStyle = '#38bdf8';
+          this.roundRect(ctx, -10, -3, 20, 7, 3.5);
+          ctx.fill();
+          ctx.fillStyle = '#a5f3fc';
+          this.roundRect(ctx, -6, -9, 12, 7, 4);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = '#6366f1';
+          this.drawLeafPath(ctx, -4, -2, 12, 7);
+          ctx.fill();
+          this.drawLeafPath(ctx, 4, -2, 12, 7);
+          ctx.fill();
+          ctx.fillStyle = '#fde047';
+          this.drawDiamond(ctx, 0, -1, 3, 4);
+          ctx.fill();
+        }
       } else {
         // Pointed Heraldic Shield
         ctx.fillStyle = '#a78bfa';
@@ -2198,6 +2649,551 @@ export class GameRenderer {
       ctx.fillStyle = pop.color;
       ctx.fillText(pop.text, pop.x, pop.y);
       ctx.restore();
+    }
+  }
+
+  drawBorderWildlife(ctx, game) {
+    const mapId = game?.mapId || 'cafe';
+    const t = game?.elapsed || 0;
+    if (mapId === 'cafe') return;
+
+    ctx.save();
+    if (mapId === 'prehistoric') {
+      // Top-border Dino trio: T-Rex (c=2), Stegosaurus (c=6), Triceratops (c=10)
+      const positions = [
+        { cx: 2.5 * TILE, cy: 0.5 * TILE, kind: 'trex' },
+        { cx: 6.5 * TILE, cy: 0.5 * TILE, kind: 'stego' },
+        { cx: 10.5 * TILE, cy: 0.5 * TILE, kind: 'trike' },
+      ];
+      positions.forEach((d, idx) => {
+        const bob = Math.sin(t * 3 + idx * 1.7) * 2.5;
+        ctx.save();
+        ctx.translate(d.cx, d.cy + bob);
+        // Cute dino head + snout
+        ctx.fillStyle = d.kind === 'stego' ? '#65a30d' : d.kind === 'trike' ? '#ea580c' : '#16a34a';
+        this.roundRect(ctx, -13, -10, 22, 18, 6);
+        ctx.fill();
+        this.roundRect(ctx, 4, -7, 10, 10, 4);
+        ctx.fill();
+        if (d.kind === 'stego') {
+          ctx.fillStyle = '#facc15';
+          for (let s = -10; s <= 2; s += 6) {
+            ctx.beginPath();
+            ctx.moveTo(s - 3, -10);
+            ctx.lineTo(s, -16);
+            ctx.lineTo(s + 3, -10);
+            ctx.fill();
+          }
+        } else if (d.kind === 'trike') {
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.moveTo(6, -7);
+          ctx.lineTo(13, -14);
+          ctx.lineTo(10, -5);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#ffffff';
+        this.roundRect(ctx, 2, -6, 4, 4, 2);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        this.roundRect(ctx, 3.5, -5, 2, 2.5, 1);
+        ctx.fill();
+        ctx.restore();
+      });
+      // Baby dino peeking along bottom border
+      ctx.save();
+      ctx.translate(6.5 * TILE, (ROWS - 0.5) * TILE + Math.sin(t * 3.8) * 2);
+      ctx.fillStyle = '#84cc16';
+      this.roundRect(ctx, -10, -8, 18, 14, 6);
+      ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.fillRect(-5, -12, 4, 4);
+      ctx.fillRect(1, -12, 4, 4);
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(3, -5, 2.5, 2.5);
+      ctx.restore();
+    } else if (mapId === 'night') {
+      // Glowing Crescent Moon + Perched Blinking Owls + Drifting Fireflies
+      ctx.save();
+      ctx.translate(6.5 * TILE, 0.48 * TILE);
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(0, 0, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1e1b4b';
+      ctx.beginPath();
+      ctx.arc(6, -3, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      const owls = [2.5 * TILE, 10.5 * TILE];
+      owls.forEach((ox, idx) => {
+        const blink = Math.sin(t * 2.2 + idx * 2.4) > 0.92;
+        ctx.save();
+        ctx.translate(ox, 0.5 * TILE + Math.sin(t * 2 + idx) * 1.5);
+        ctx.fillStyle = '#78350f';
+        this.roundRect(ctx, -11, -11, 22, 22, 8);
+        ctx.fill();
+        ctx.fillStyle = '#fde68a';
+        this.roundRect(ctx, -7, 0, 14, 10, 5);
+        ctx.fill();
+        // Ear tufts
+        ctx.fillStyle = '#78350f';
+        ctx.beginPath();
+        ctx.moveTo(-10, -9);
+        ctx.lineTo(-13, -16);
+        ctx.lineTo(-4, -11);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(10, -9);
+        ctx.lineTo(13, -16);
+        ctx.lineTo(4, -11);
+        ctx.fill();
+        if (blink) {
+          ctx.strokeStyle = '#fef08a';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-7, -4);
+          ctx.lineTo(-2, -4);
+          ctx.moveTo(2, -4);
+          ctx.lineTo(7, -4);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = '#facc15';
+          this.roundRect(ctx, -7.5, -7, 5.5, 5.5, 2.7);
+          ctx.fill();
+          this.roundRect(ctx, 2, -7, 5.5, 5.5, 2.7);
+          ctx.fill();
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(-5.5, -5.5, 2.2, 2.5);
+          ctx.fillRect(4, -5.5, 2.2, 2.5);
+        }
+        ctx.fillStyle = '#f59e0b';
+        this.drawDiamond(ctx, 0, -1, 2.5, 3);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Fireflies along sides + Sleeping Fox on bottom border
+      for (let f = 0; f < 5; f++) {
+        const fx = (f % 2 === 0 ? 0.5 : COLS - 0.5) * TILE + Math.sin(t * 2.5 + f) * 8;
+        const fy = (2 + f * 1.7) * TILE + Math.cos(t * 3 + f) * 6;
+        const glow = 0.4 + 0.6 * Math.abs(Math.sin(t * 4 + f * 1.3));
+        ctx.fillStyle = `rgba(253, 224, 71, ${glow})`;
+        this.drawStar(ctx, fx, fy, 4.5, 1.5, 4);
+        ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(6.5 * TILE, (ROWS - 0.5) * TILE);
+      ctx.fillStyle = '#ea580c';
+      this.roundRect(ctx, -13, -7, 26, 15, 7);
+      ctx.fill();
+      ctx.fillStyle = '#ffedd5';
+      this.roundRect(ctx, 4, -3, 10, 9, 4.5);
+      ctx.fill();
+      ctx.fillStyle = '#ea580c';
+      ctx.beginPath();
+      ctx.moveTo(-10, -7);
+      ctx.lineTo(-13, -14);
+      ctx.lineTo(-5, -9);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, -7);
+      ctx.lineTo(3, -14);
+      ctx.lineTo(5, -8);
+      ctx.fill();
+      ctx.restore();
+    } else if (mapId === 'space') {
+      // Ringed Planet + Cratered Moon + 2 Waving Aliens in UFOs
+      ctx.save();
+      ctx.translate(6.5 * TILE, 0.5 * TILE);
+      ctx.fillStyle = '#fb923c';
+      ctx.beginPath();
+      ctx.arc(0, 0, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 1, 20, 6, -0.22, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      const aliens = [2.5 * TILE, 10.5 * TILE];
+      aliens.forEach((ax, idx) => {
+        const hover = Math.sin(t * 3.2 + idx * 1.9) * 3;
+        ctx.save();
+        ctx.translate(ax, 0.5 * TILE + hover);
+        // Glass dome + Cute green Alien
+        ctx.fillStyle = 'rgba(125, 211, 252, 0.45)';
+        this.roundRect(ctx, -9, -14, 18, 13, 8);
+        ctx.fill();
+        ctx.fillStyle = '#84cc16';
+        this.roundRect(ctx, -6, -11, 12, 10, 5);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-3.5, -8, 2.2, 3);
+        ctx.fillRect(1.5, -8, 2.2, 3);
+        // Saucer rim
+        ctx.fillStyle = '#c084fc';
+        this.roundRect(ctx, -16, -2, 32, 8, 4);
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // Side Moon on left border + Pastel Comet Planet on bottom border
+      ctx.save();
+      ctx.translate(0.5 * TILE, 5.5 * TILE);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(-5, -4, 4, 4);
+      ctx.fillRect(2, 2, 5, 4);
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(6.5 * TILE, (ROWS - 0.5) * TILE);
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#a7f3d0';
+      ctx.fillRect(-5, -4, 6, 4);
+      ctx.strokeStyle = '#f0abfc';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(0, 1, 17, 5, 0.2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  drawSpikeTraps(ctx, game) {
+    for (const sp of game.spikeTraps || []) {
+      const cx = (sp.c + 0.5) * TILE;
+      const cy = (sp.r + 0.5) * TILE;
+      const color = sp.style === 'thorn' ? '#22c55e' : sp.style === 'plasma' ? '#c084fc' : '#f97316';
+      const stroke = sp.style === 'thorn' ? '#14532d' : sp.style === 'plasma' ? '#38bdf8' : '#9f1239';
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      if (sp.phase === 'telegraph') {
+        const p = 1 - Math.max(0, sp.timer / (sp.maxTelegraph || 0.75));
+        const pulse = 0.5 + 0.5 * Math.sin(game.elapsed * 22);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.18 + pulse * 0.2;
+        this.roundRect(ctx, -TILE * 0.42, -TILE * 0.42, TILE * 0.84, TILE * 0.84, 8);
+        ctx.fill();
+        ctx.globalAlpha = 0.88;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2.4;
+        this.roundRect(ctx, -TILE * 0.38, -TILE * 0.38, TILE * 0.76, TILE * 0.76, 7);
+        ctx.stroke();
+        // Expanding inner danger diamond
+        const r = 6 + p * 12;
+        ctx.fillStyle = '#fde047';
+        this.drawDiamond(ctx, 0, 0, r, r);
+        ctx.fill();
+      } else {
+        const fade = Math.min(1, sp.timer / 0.5);
+        ctx.globalAlpha = fade;
+        // Cracked scorched pad
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.42)';
+        this.roundRect(ctx, -TILE * 0.4, -TILE * 0.4, TILE * 0.8, TILE * 0.8, 9);
+        ctx.fill();
+        ctx.strokeStyle = sp.char?.color || stroke;
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+
+        // 4-cluster sharp 2.5D spikes
+        const pts = [
+          [-10, -4, 15],
+          [10, -4, 15],
+          [0, 6, 18],
+          [-8, 9, 13],
+          [8, 9, 13],
+        ];
+        for (const [sx, sy, h] of pts) {
+          ctx.fillStyle = color;
+          ctx.strokeStyle = stroke;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(sx - 6, sy + 5);
+          ctx.lineTo(sx, sy - h);
+          ctx.lineTo(sx + 6, sy + 5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+  }
+
+  drawLaneSwoopTelegraphs(ctx, game) {
+    for (const sw of game.laneSwoops || []) {
+      const col = sw.style === 'ufo' ? '#38bdf8' : '#818cf8';
+      const pulse = 0.5 + 0.5 * Math.sin(game.elapsed * 18);
+      const ang = sw.axis === 'row' ? (sw.dir >= 0 ? 0 : Math.PI) : sw.dir >= 0 ? Math.PI / 2 : -Math.PI / 2;
+      ctx.save();
+      for (const cell of sw.cells) {
+        const x = cell.c * TILE;
+        const y = cell.r * TILE;
+        ctx.fillStyle = col;
+        ctx.globalAlpha = sw.phase === 'telegraph' ? 0.16 + pulse * 0.14 : 0.25;
+        this.roundRect(ctx, x + 4, y + 6, TILE - 8, TILE - 12, 8);
+        ctx.fill();
+
+        // Directional chevron arrow cue
+        ctx.save();
+        ctx.translate(x + TILE / 2, y + TILE / 2);
+        ctx.rotate(ang);
+        ctx.globalAlpha = sw.phase === 'telegraph' ? 0.5 + pulse * 0.35 : 0.35;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-4, -6);
+        ctx.lineTo(4, 0);
+        ctx.lineTo(-4, 6);
+        ctx.stroke();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+  }
+
+  drawLaneSwoopsActive(ctx, game) {
+    for (const sw of game.laneSwoops || []) {
+      if (sw.phase !== 'sweep' || sw.cells.length === 0) continue;
+      const first = sw.cells[0];
+      const last = sw.cells[sw.cells.length - 1];
+      const fx = (first.c + 0.5) * TILE;
+      const fy = (first.r + 0.5) * TILE;
+      const lx = (last.c + 0.5) * TILE;
+      const ly = (last.r + 0.5) * TILE;
+      const x = fx + (lx - fx) * sw.progress;
+      const y = fy + (ly - fy) * sw.progress;
+
+      ctx.save();
+      ctx.translate(x, y - 6);
+      if (sw.axis === 'row') {
+        ctx.scale(sw.dir >= 0 ? 1 : -1, 1);
+      } else {
+        ctx.rotate(sw.dir >= 0 ? 0.18 : -0.18);
+      }
+      if (sw.style === 'ufo') {
+        // Swooping Neon Alien Saucer
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+        ctx.beginPath();
+        ctx.moveTo(-14, 4);
+        ctx.lineTo(14, 4);
+        ctx.lineTo(22, 24);
+        ctx.lineTo(-22, 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#c084fc';
+        this.roundRect(ctx, -20, -4, 40, 12, 6);
+        ctx.fill();
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#a5f3fc';
+        this.roundRect(ctx, -10, -14, 20, 12, 6);
+        ctx.fill();
+      } else {
+        // Swooping Giant Owl with Flapping Wings
+        const flap = Math.sin(game.elapsed * 32) * 8;
+        ctx.fillStyle = '#6366f1';
+        ctx.beginPath();
+        ctx.moveTo(-6, 0);
+        ctx.quadraticCurveTo(-24, -14 + flap, -28, 4 + flap);
+        ctx.lineTo(-6, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.quadraticCurveTo(24, -14 + flap, 28, 4 + flap);
+        ctx.lineTo(6, 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#4338ca';
+        this.roundRect(ctx, -12, -13, 24, 24, 9);
+        ctx.fill();
+        ctx.fillStyle = '#fde047';
+        ctx.fillRect(-7, -7, 5, 5);
+        ctx.fillRect(2, -7, 5, 5);
+      }
+      ctx.restore();
+    }
+  }
+
+  drawFloorSmashTelegraphs(ctx, game) {
+    for (const sm of game.floorSmashes || []) {
+      if (sm.phase !== 'telegraph') continue;
+      const p = 1 - Math.max(0, sm.timer / (sm.maxTelegraph || 0.85));
+      const pulse = 0.5 + 0.5 * Math.sin(game.elapsed * 20);
+      const col = sm.style === 'meteor' ? '#a855f7' : '#ea580c';
+
+      ctx.save();
+      for (const cell of sm.cells) {
+        const x = cell.c * TILE;
+        const y = cell.r * TILE;
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.14 + p * 0.24 + pulse * 0.05;
+        this.roundRect(ctx, x + 3, y + 3, TILE - 6, TILE - 6, 8);
+        ctx.fill();
+        ctx.strokeStyle = p > 0.7 ? '#e11d48' : col;
+        ctx.globalAlpha = 0.72;
+        ctx.lineWidth = 2;
+        this.roundRect(ctx, x + 4, y + 4, TILE - 8, TILE - 8, 7);
+        ctx.stroke();
+      }
+      // Shrinking dark overhead shadow at center
+      const cx = (sm.c + 0.5) * TILE;
+      const cy = (sm.r + 0.5) * TILE;
+      const shadowR = 14 + p * 36;
+      ctx.globalAlpha = 0.28 + p * 0.28;
+      ctx.fillStyle = '#0f172a';
+      this.roundRect(ctx, cx - shadowR, cy - shadowR * 0.55, shadowR * 2, shadowR * 1.1, 14);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  drawFloorSmashImpacts(ctx, game) {
+    for (const sm of game.floorSmashes || []) {
+      if (sm.phase !== 'impact') continue;
+      const p = 1 - Math.max(0, sm.timer / (sm.maxImpact || 0.45));
+      const alpha = Math.max(0, 1 - p * 0.85);
+      const cx = (sm.c + 0.5) * TILE;
+      const cy = (sm.r + 0.5) * TILE;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      // Expanding shockwave box across 3x3 zone
+      const rad = 32 + p * 68;
+      ctx.strokeStyle = sm.style === 'meteor' ? '#38bdf8' : '#f97316';
+      ctx.lineWidth = 4 * (1 - p * 0.5);
+      this.roundRect(ctx, cx - rad, cy - rad, rad * 2, rad * 2, 22);
+      ctx.stroke();
+
+      // Slamming Dino Foot or Blazing Meteor visual
+      ctx.translate(cx, cy - 10 + Math.min(0, -40 * (1 - p * 3)));
+      if (sm.style === 'meteor') {
+        ctx.fillStyle = '#7e22ce';
+        this.roundRect(ctx, -26, -26, 52, 52, 18);
+        ctx.fill();
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = '#38bdf8';
+        this.drawStar(ctx, 0, 0, 16, 6, 4);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#15803d';
+        this.roundRect(ctx, -28, -20, 56, 42, 14);
+        ctx.fill();
+        ctx.strokeStyle = '#14532d';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        // 3 Dino toes
+        ctx.fillStyle = '#fef08a';
+        [-18, 0, 18].forEach((tx) => {
+          ctx.beginPath();
+          ctx.moveTo(tx - 6, 20);
+          ctx.lineTo(tx, 33);
+          ctx.lineTo(tx + 6, 20);
+          ctx.closePath();
+          ctx.fill();
+        });
+      }
+      ctx.restore();
+    }
+  }
+
+  renderMapThumbnail(canvasEl, mapSelection) {
+    if (!canvasEl) return;
+    const w = 136;
+    const h = 84;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvasEl.width !== Math.round(w * dpr) || canvasEl.height !== Math.round(h * dpr)) {
+      canvasEl.width = Math.round(w * dpr);
+      canvasEl.height = Math.round(h * dpr);
+    }
+    const ctx = canvasEl.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    if (mapSelection === 'random') {
+      // 4-quadrant mini collage + big sparkling dice
+      const quads = [
+        { x: 0, y: 0, bg: '#ffefe1', dot: '#ec4899' },
+        { x: w / 2, y: 0, bg: '#fde68a', dot: '#ea580c' },
+        { x: 0, y: h / 2, bg: '#334155', dot: '#a5b4fc' },
+        { x: w / 2, y: h / 2, bg: '#2e3654', dot: '#38bdf8' },
+      ];
+      for (const q of quads) {
+        ctx.fillStyle = q.bg;
+        ctx.fillRect(q.x, q.y, w / 2, h / 2);
+        ctx.fillStyle = q.dot;
+        this.drawStar(ctx, q.x + w / 4, q.y + h / 4, 8, 3, 4);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#ffffff';
+      this.roundRect(ctx, w / 2 - 17, h / 2 - 17, 34, 34, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#ec4899';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      ctx.fillStyle = '#ec4899';
+      [
+        [-7, -7],
+        [7, -7],
+        [0, 0],
+        [-7, 7],
+        [7, 7],
+      ].forEach(([dx, dy]) => {
+        ctx.beginPath();
+        ctx.arc(w / 2 + dx, h / 2 + dy, 2.3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      return;
+    }
+
+    const cfg = getMapConfig(mapSelection);
+    const themes = {
+      cafe: { border: '#cfa476', floorA: '#fffaf3', floorB: '#ffefe1', wall: '#b45309', bumper: '#ec4899' },
+      prehistoric: { border: '#44403c', floorA: '#fef3c7', floorB: '#fde68a', wall: '#78716c', bumper: '#f59e0b' },
+      night: { border: '#1e1b4b', floorA: '#334155', floorB: '#3b4a62', wall: '#6366f1', bumper: '#a5b4fc' },
+      space: { border: '#17153b', floorA: '#2e3654', floorB: '#363f63', wall: '#475569', bumper: '#22d3ee' },
+    }[cfg.id];
+
+    ctx.fillStyle = themes.border;
+    ctx.fillRect(0, 0, w, h);
+    const cw = (w - 16) / (COLS - 2);
+    const ch = (h - 14) / (ROWS - 2);
+    for (let r = 1; r < ROWS - 1; r++) {
+      for (let c = 1; c < COLS - 1; c++) {
+        ctx.fillStyle = (r + c) % 2 === 0 ? themes.floorA : themes.floorB;
+        ctx.fillRect(8 + (c - 1) * cw, 7 + (r - 1) * ch, cw, ch);
+      }
+    }
+    ctx.fillStyle = themes.wall;
+    for (const [wc, wr] of cfg.walls) {
+      this.roundRect(ctx, 8 + (wc - 1) * cw + 1, 7 + (wr - 1) * ch + 1, cw - 2, ch - 2, 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = themes.bumper;
+    for (const [bc, br] of cfg.bumpers) {
+      this.roundRect(ctx, 8 + (bc - 1) * cw + 1, 7 + (br - 1) * ch + 1, cw - 2, ch - 2, 3);
+      ctx.fill();
     }
   }
 }

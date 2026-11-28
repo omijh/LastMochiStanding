@@ -23,24 +23,7 @@ import {
   TRANSLATIONS,
 } from './constants.js';
 import { computeBotInput } from './bot.js';
-
-const TABLE_COORDS = [
-  [2, 2],
-  [6, 2],
-  [10, 2],
-  [4, 5],
-  [8, 5],
-  [2, 8],
-  [6, 8],
-  [10, 8],
-];
-
-const BUMPER_COORDS = [
-  [3, 3],
-  [9, 3],
-  [3, 7],
-  [9, 7],
-];
+import { getMapConfig, pickMapId } from './maps.js';
 
 function buildSpiralOrder() {
   const order = [];
@@ -83,6 +66,10 @@ export class GameEngine {
       ? options.gamepadIndices.slice(0, 4)
       : [null, null, null, null];
     this.lang = options.lang || 'en';
+    this.mapSelection = options.mapSelection || 'random';
+    this.forcedMapId = options.forcedMapId || null;
+    this.mapId = null;
+    this.mapConfig = getMapConfig('cafe');
     this.humanSlotCount = this.slotConfigs.filter((s) => s === 'human').length;
 
     this.matchStats = CHARACTERS.map((defaultCh, idx) => {
@@ -124,6 +111,10 @@ export class GameEngine {
     this.roundWinner = null;
     this.roundResolveTimer = -1;
 
+    this.mapId = this.forcedMapId || pickMapId(this.mapSelection, this.mapId);
+    this.forcedMapId = null;
+    this.mapConfig = getMapConfig(this.mapId);
+
     this.grid = this.generateGrid();
     this.bombs = [];
     this.explosions = [];
@@ -131,6 +122,11 @@ export class GameEngine {
     this.bobaPearls = [];
     this.jellyPads = [];
     this.caramelZones = [];
+    this.floorSmashes = [];
+    this.spikeTraps = [];
+    this.pendingSpikeWaves = [];
+    this.laneSwoops = [];
+    this.eventWaveQueue = [];
     this.particles = [];
     this.popups = [];
     this.ghostProjectiles = [];
@@ -233,8 +229,11 @@ export class GameEngine {
       }
     }
 
-    const tableSet = new Set(TABLE_COORDS.map(([c, r]) => `${c},${r}`));
-    const bumperSet = new Set(BUMPER_COORDS.map(([c, r]) => `${c},${r}`));
+    const wallList = this.mapConfig?.walls || [];
+    const bumperList = this.mapConfig?.bumpers || [];
+    const crateDensity = this.mapConfig?.crateDensity ?? 0.45;
+    const tableSet = new Set(wallList.map(([c, r]) => `${c},${r}`));
+    const bumperSet = new Set(bumperList.map(([c, r]) => `${c},${r}`));
 
     for (let r = 0; r < ROWS; r++) {
       const row = [];
@@ -249,7 +248,7 @@ export class GameEngine {
         } else if (safeZones.has(key)) {
           row.push(TILE_TYPE.EMPTY);
         } else {
-          row.push(Math.random() < 0.46 ? TILE_TYPE.CRATE : TILE_TYPE.EMPTY);
+          row.push(Math.random() < crateDensity ? TILE_TYPE.CRATE : TILE_TYPE.EMPTY);
         }
       }
       grid.push(row);
@@ -507,13 +506,10 @@ export class GameEngine {
       // Center Golden Steamer event
       this.updateSteamer(dt);
 
-      // Trigger Kaiten-Zushi Belt event mid-round
+      // Trigger Map-specific Mid-Round Event
       if (!this.kaitenTriggered && this.timeLeft <= KAITEN_START_AT) {
         this.kaitenTriggered = true;
-        this.kaitenTimer = KAITEN_DURATION;
-        this.sound?.playEventBell();
-        const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
-        this.showBanner(tr.eventKaiten, 3.2);
+        this.triggerMapEvent();
       }
 
       // Trigger Sudden Death inward spiral crates
@@ -648,12 +644,17 @@ export class GameEngine {
       this.applyKaitenBelt(dt);
     }
 
-    // Update bombs, projectiles, zones, explosions, warnings, particles
+    // Update bombs, projectiles, zones, map powers, explosions, warnings, particles
     this.updateBombs(dt);
     this.updateBobaPearls(dt);
     this.updateGhostProjectiles(dt);
     this.updateJellyPads(dt);
     this.updateCaramelZones(dt);
+    this.updateEventWaveQueue(dt);
+    this.updatePendingSpikeWaves(dt);
+    this.updateFloorSmashes(dt);
+    this.updateSpikeTraps(dt);
+    this.updateLaneSwoops(dt);
     this.updateExplosions(dt);
     this.updateSuddenWarnings(dt);
     this.updateParticlesAndPopups(dt);
@@ -681,7 +682,15 @@ export class GameEngine {
         this.goldenMochi = { c: 6, r: 5, bobPhase: 0 };
         this.sound?.playEventBell();
         const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
-        this.showBanner(tr.eventSteamer, 2.8);
+        const msg =
+          this.mapId === 'prehistoric'
+            ? tr.eventSteamerPrehistoric
+            : this.mapId === 'night'
+              ? tr.eventSteamerNight
+              : this.mapId === 'space'
+                ? tr.eventSteamerSpace
+                : tr.eventSteamer;
+        this.showBanner(msg, 2.8);
       }
     }
   }
@@ -777,6 +786,7 @@ export class GameEngine {
   dropSuddenCrate(c, r) {
     this.grid[r][c] = TILE_TYPE.SUDDEN_WALL;
     this.powerups = this.powerups.filter((pu) => !(pu.c === c && pu.r === r));
+    this.spikeTraps = this.spikeTraps.filter((sp) => !(sp.c === c && sp.r === r));
     if (this.goldenMochi && this.goldenMochi.c === c && this.goldenMochi.r === r) {
       this.goldenMochi = null;
     }
@@ -1148,6 +1158,463 @@ export class GameEngine {
     } else if (pu.type === 'shield') {
       p.hasShield = true;
       this.addPopup(p.x, p.y - 18, 'SHIELD 🛡️', '#8b5cf6');
+    } else if (pu.type === 'floor_smash') {
+      this.triggerFloorSmash(p);
+    } else if (pu.type === 'rival_spikes') {
+      this.triggerRivalSpikes(p);
+    } else if (pu.type === 'lane_swoop') {
+      this.triggerLaneSwoop(p);
+    }
+  }
+
+  _collectAreaCells(centerC, centerR, radius = 1) {
+    const cells = [];
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        const nc = centerC + dc;
+        const nr = centerR + dr;
+        if (nc < 1 || nc >= COLS - 1 || nr < 1 || nr >= ROWS - 1) continue;
+        if (this.isSolidTile(this.grid[nr][nc])) continue;
+        cells.push({ c: nc, r: nr });
+      }
+    }
+    return cells;
+  }
+
+  _pickNearestRival(p, includeMochi = false) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const pl of this.players) {
+      if (pl.id === p.id || pl.isCelebrating) continue;
+      if (pl.state !== 'alive' && !(includeMochi && pl.state === 'mochi_ball')) continue;
+      const d = Math.hypot(pl.x - p.x, pl.y - p.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = pl;
+      }
+    }
+    return best;
+  }
+
+  triggerFloorSmash(p) {
+    const target = this._pickNearestRival(p, true);
+    const tc = target ? Math.max(1, Math.min(COLS - 2, Math.floor(target.x / TILE))) : 6;
+    const tr = target ? Math.max(1, Math.min(ROWS - 2, Math.floor(target.y / TILE))) : 5;
+    const style = this.mapConfig?.smashStyle || 'dino';
+    this.addPopup(
+      p.x,
+      p.y - 22,
+      style === 'meteor' ? 'METEOR! ☄️' : 'DINO STOMP! 🦖',
+      style === 'meteor' ? '#a855f7' : '#ea580c'
+    );
+    this.spawnFloorSmashAt(tc, tr, p.id, p.char, style, 0.85);
+  }
+
+  spawnFloorSmashAt(c, r, ownerId, char, style = 'dino', telegraph = 0.85) {
+    const cells = this._collectAreaCells(c, r, 1);
+    if (cells.length === 0) return;
+    this.sound?.playSmashTelegraph();
+    this.floorSmashes.push({
+      ownerId,
+      char: char || { color: style === 'meteor' ? '#a855f7' : '#ea580c', accent: '#fef3c7' },
+      c,
+      r,
+      cells,
+      phase: 'telegraph',
+      timer: telegraph,
+      maxTelegraph: telegraph,
+      impactTimer: 0.45,
+      maxImpact: 0.45,
+      style,
+      hitPlayers: new Set(),
+    });
+  }
+
+  updateFloorSmashes(dt) {
+    for (let i = this.floorSmashes.length - 1; i >= 0; i--) {
+      const sm = this.floorSmashes[i];
+      if (sm.phase === 'telegraph') {
+        sm.timer -= dt;
+        if (sm.timer <= 0) {
+          sm.phase = 'impact';
+          sm.timer = sm.impactTimer;
+          if (this.roundResolveTimer >= 0) continue;
+          const cx = (sm.c + 0.5) * TILE;
+          const cy = (sm.r + 0.5) * TILE;
+          const owner = sm.ownerId !== null ? this.players.find((pl) => pl.id === sm.ownerId) : null;
+          this.sound?.playFloorSmash();
+          this.screenShake = Math.max(this.screenShake, 8);
+          this.spawnConfetti(
+            cx,
+            cy,
+            sm.style === 'meteor'
+              ? ['#a855f7', '#38bdf8', '#fde047', '#ffffff']
+              : ['#ea580c', '#84cc16', '#fde047', '#fed7aa'],
+            18
+          );
+          for (const cell of sm.cells) {
+            if (this.grid[cell.r][cell.c] === TILE_TYPE.CRATE) {
+              this.breakCrate(cell.c, cell.r, owner);
+            }
+          }
+          const keySet = new Set(sm.cells.map((cell) => `${cell.c},${cell.r}`));
+          for (const pl of this.players) {
+            if (sm.hitPlayers.has(pl.id) || pl.jumpTimer > 0 || pl.isCelebrating) continue;
+            const pc = Math.floor(pl.x / TILE);
+            const pr = Math.floor(pl.y / TILE);
+            if (!keySet.has(`${pc},${pr}`)) continue;
+            if (pl.state === 'alive') {
+              if (sm.ownerId !== null && pl.id === sm.ownerId) {
+                sm.hitPlayers.add(pl.id);
+                this.triggerSelfHop(pl);
+              } else if (pl.invulnTimer <= 0) {
+                sm.hitPlayers.add(pl.id);
+                this.puffPlayer(pl, owner, false);
+              }
+            } else if (
+              pl.state === 'mochi_ball' &&
+              pl.bowlVx === 0 &&
+              pl.bowlVy === 0 &&
+              pl.mochiMaxTimer - pl.mochiTimer > 0.45
+            ) {
+              sm.hitPlayers.add(pl.id);
+              let dc = Math.sign(pc - sm.c);
+              let dr = Math.sign(pr - sm.r);
+              if (dc === 0 && dr === 0) dr = 1;
+              if (dc !== 0 && dr !== 0) dr = 0;
+              this.launchMochiBall(
+                pl,
+                dc,
+                dr,
+                sm.ownerId,
+                sm.style === 'meteor' ? 'METEOR BOWL! ☄️' : 'STOMP BOWL! 🦖'
+              );
+            }
+          }
+        }
+      } else {
+        sm.timer -= dt;
+        if (sm.timer <= 0) {
+          this.floorSmashes.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  triggerRivalSpikes(p) {
+    const rivals = this.players.filter((pl) => pl.id !== p.id && pl.state === 'alive' && !pl.isCelebrating);
+    const style = this.mapConfig?.spikeStyle || 'magma';
+    const label =
+      style === 'thorn' ? 'THORN SPIKES! 🌿' : style === 'plasma' ? 'PLASMA SPIKES! ⚡' : 'MAGMA SPIKES! 🌋';
+    this.addPopup(p.x, p.y - 22, label, '#e11d48');
+    this.sound?.playSpikeWarn();
+
+    if (rivals.length === 0) {
+      this.spawnSpikeAt(6, 5, p.id, p.char, style, 0.75);
+      return;
+    }
+
+    for (const rival of rivals) {
+      const rc = Math.max(1, Math.min(COLS - 2, Math.floor(rival.x / TILE)));
+      const rr = Math.max(1, Math.min(ROWS - 2, Math.floor(rival.y / TILE)));
+      this.spawnSpikeAt(rc, rr, p.id, p.char, style, 0.75);
+      this.pendingSpikeWaves.push({
+        delay: 0.45,
+        targetId: rival.id,
+        ownerId: p.id,
+        char: p.char,
+        style,
+      });
+    }
+  }
+
+  spawnSpikeAt(c, r, ownerId, char, style = 'magma', telegraph = 0.75) {
+    if (c < 1 || c >= COLS - 1 || r < 1 || r >= ROWS - 1) return false;
+    if (this.grid[r][c] !== TILE_TYPE.EMPTY) return false;
+    if (this.spikeTraps.some((sp) => sp.c === c && sp.r === r)) return false;
+    this.spikeTraps.push({
+      ownerId,
+      char: char || { color: '#e11d48', accent: '#ffe4e6' },
+      c,
+      r,
+      phase: 'telegraph',
+      timer: telegraph,
+      maxTelegraph: telegraph,
+      activeDuration: 4.2,
+      style,
+      hitPlayers: new Set(),
+    });
+    return true;
+  }
+
+  updatePendingSpikeWaves(dt) {
+    for (let i = this.pendingSpikeWaves.length - 1; i >= 0; i--) {
+      const wave = this.pendingSpikeWaves[i];
+      wave.delay -= dt;
+      if (wave.delay > 0) continue;
+      this.pendingSpikeWaves.splice(i, 1);
+
+      const rival = this.players.find((pl) => pl.id === wave.targetId);
+      if (!rival || rival.state !== 'alive' || rival.isCelebrating) continue;
+      const rc = Math.max(1, Math.min(COLS - 2, Math.floor(rival.x / TILE)));
+      const rr = Math.max(1, Math.min(ROWS - 2, Math.floor(rival.y / TILE)));
+      if (!this.spawnSpikeAt(rc, rr, wave.ownerId, wave.char, wave.style, 0.75)) {
+        const fx = rival.facingX || 0;
+        const fy = rival.facingY || 0;
+        const candidates = [
+          [rc + fx, rr + fy],
+          [rc - fx, rr - fy],
+          [rc + 1, rr],
+          [rc - 1, rr],
+          [rc, rr + 1],
+          [rc, rr - 1],
+        ];
+        for (const [nc, nr] of candidates) {
+          if (this.spawnSpikeAt(nc, nr, wave.ownerId, wave.char, wave.style, 0.75)) break;
+        }
+      }
+      this.sound?.playSpikeWarn();
+    }
+  }
+
+  updateSpikeTraps(dt) {
+    for (let i = this.spikeTraps.length - 1; i >= 0; i--) {
+      const sp = this.spikeTraps[i];
+      sp.timer -= dt;
+      if (sp.phase === 'telegraph') {
+        if (sp.timer <= 0) {
+          sp.phase = 'active';
+          sp.timer = sp.activeDuration;
+          this.sound?.playSpikeErupt();
+          const cx = (sp.c + 0.5) * TILE;
+          const cy = (sp.r + 0.5) * TILE;
+          this.spawnConfetti(
+            cx,
+            cy,
+            sp.style === 'thorn'
+              ? ['#16a34a', '#a3e635', '#fef08a']
+              : sp.style === 'plasma'
+                ? ['#a855f7', '#22d3ee', '#ffffff']
+                : ['#f97316', '#e11d48', '#fde047'],
+            8
+          );
+        }
+        continue;
+      }
+
+      if (this.roundResolveTimer < 0) {
+        const owner = sp.ownerId !== null ? this.players.find((pl) => pl.id === sp.ownerId) : null;
+        for (const pl of this.players) {
+          if (pl.id === sp.ownerId || pl.isCelebrating || pl.jumpTimer > 0) continue;
+          if (Math.floor(pl.x / TILE) !== sp.c || Math.floor(pl.y / TILE) !== sp.r) continue;
+          if (pl.state === 'alive' && pl.invulnTimer <= 0) {
+            this.puffPlayer(pl, owner, false);
+          } else if (
+            pl.state === 'mochi_ball' &&
+            pl.bowlVx === 0 &&
+            pl.bowlVy === 0 &&
+            !sp.hitPlayers.has(pl.id) &&
+            pl.mochiMaxTimer - pl.mochiTimer > 0.45
+          ) {
+            sp.hitPlayers.add(pl.id);
+            const dc = pl.facingX || 0;
+            const dr = pl.facingY || (dc === 0 ? 1 : 0);
+            this.launchMochiBall(pl, dc, dr, sp.ownerId, 'SPIKE BOWL! ⚡');
+          }
+        }
+      }
+
+      if (sp.timer <= 0) {
+        this.spikeTraps.splice(i, 1);
+      }
+    }
+  }
+
+  triggerLaneSwoop(p) {
+    const style = this.mapConfig?.swoopStyle || 'owl';
+    const rival = this._pickNearestRival(p, true);
+    const pc = Math.max(1, Math.min(COLS - 2, Math.floor(p.x / TILE)));
+    const pr = Math.max(1, Math.min(ROWS - 2, Math.floor(p.y / TILE)));
+    let axis = 'row';
+    let index = 5;
+    let dir = 1;
+    if (rival) {
+      const rc = Math.max(1, Math.min(COLS - 2, Math.floor(rival.x / TILE)));
+      const rr = Math.max(1, Math.min(ROWS - 2, Math.floor(rival.y / TILE)));
+      if (pc === rc && pr !== rr) {
+        axis = 'col';
+        index = rc;
+        dir = rr >= pr ? 1 : -1;
+      } else {
+        axis = 'row';
+        index = rr;
+        dir = rc >= pc ? 1 : -1;
+      }
+    }
+    this.addPopup(
+      p.x,
+      p.y - 22,
+      style === 'ufo' ? 'UFO SWEEP! 🛸' : 'OWL SWOOP! 🦉',
+      style === 'ufo' ? '#38bdf8' : '#6366f1'
+    );
+    this.spawnLaneSwoop(axis, index, dir, p.id, p.char, style, 0.8);
+  }
+
+  spawnLaneSwoop(axis, index, dir, ownerId, char, style = 'owl', telegraph = 0.8) {
+    const cells = [];
+    if (axis === 'row') {
+      const start = dir >= 0 ? 1 : COLS - 2;
+      const end = dir >= 0 ? COLS - 1 : 0;
+      for (let c = start; c !== end; c += dir >= 0 ? 1 : -1) {
+        if (!this.isSolidTile(this.grid[index][c])) {
+          cells.push({ c, r: index });
+        }
+      }
+    } else {
+      const start = dir >= 0 ? 1 : ROWS - 2;
+      const end = dir >= 0 ? ROWS - 1 : 0;
+      for (let r = start; r !== end; r += dir >= 0 ? 1 : -1) {
+        if (!this.isSolidTile(this.grid[r][index])) {
+          cells.push({ c: index, r });
+        }
+      }
+    }
+    if (cells.length === 0) return;
+    this.sound?.playSpikeWarn();
+    this.laneSwoops.push({
+      ownerId,
+      char: char || { color: style === 'ufo' ? '#38bdf8' : '#6366f1', accent: '#e0e7ff' },
+      axis,
+      index,
+      dir: dir >= 0 ? 1 : -1,
+      cells,
+      phase: 'telegraph',
+      timer: telegraph,
+      maxTelegraph: telegraph,
+      sweepDuration: 0.52,
+      progress: 0,
+      appliedCount: 0,
+      style,
+      hitPlayers: new Set(),
+    });
+  }
+
+  updateLaneSwoops(dt) {
+    for (let i = this.laneSwoops.length - 1; i >= 0; i--) {
+      const sw = this.laneSwoops[i];
+      if (sw.phase === 'telegraph') {
+        sw.timer -= dt;
+        if (sw.timer <= 0) {
+          sw.phase = 'sweep';
+          sw.progress = 0;
+          sw.appliedCount = 0;
+          this.sound?.playSwoop(sw.style);
+        }
+        continue;
+      }
+
+      sw.progress = Math.min(1, sw.progress + dt / sw.sweepDuration);
+      const targetCount = Math.min(sw.cells.length, Math.ceil(sw.progress * sw.cells.length));
+      const owner = sw.ownerId !== null ? this.players.find((pl) => pl.id === sw.ownerId) : null;
+
+      while (sw.appliedCount < targetCount) {
+        const cell = sw.cells[sw.appliedCount++];
+        if (this.roundResolveTimer >= 0) continue;
+        if (this.grid[cell.r][cell.c] === TILE_TYPE.CRATE) {
+          this.breakCrate(cell.c, cell.r, owner);
+        }
+        for (const pl of this.players) {
+          if (sw.hitPlayers.has(pl.id) || pl.jumpTimer > 0 || pl.isCelebrating) continue;
+          if (Math.floor(pl.x / TILE) !== cell.c || Math.floor(pl.y / TILE) !== cell.r) continue;
+          if (pl.state === 'alive') {
+            if (sw.ownerId !== null && pl.id === sw.ownerId) {
+              sw.hitPlayers.add(pl.id);
+              this.triggerSelfHop(pl);
+            } else if (pl.invulnTimer <= 0) {
+              sw.hitPlayers.add(pl.id);
+              this.puffPlayer(pl, owner, false);
+            }
+          } else if (
+            pl.state === 'mochi_ball' &&
+            pl.bowlVx === 0 &&
+            pl.bowlVy === 0 &&
+            pl.mochiMaxTimer - pl.mochiTimer > 0.45
+          ) {
+            sw.hitPlayers.add(pl.id);
+            const dx = sw.axis === 'row' ? sw.dir : 0;
+            const dy = sw.axis === 'col' ? sw.dir : 0;
+            this.launchMochiBall(
+              pl,
+              dx,
+              dy,
+              sw.ownerId,
+              sw.style === 'ufo' ? 'BEAM BOWL! 🛸' : 'SWOOP BOWL! 🦉'
+            );
+          }
+        }
+      }
+
+      if (sw.progress >= 1) {
+        this.laneSwoops.splice(i, 1);
+      }
+    }
+  }
+
+  _pickRandomOpenTile() {
+    const candidates = [];
+    for (let r = 1; r < ROWS - 1; r++) {
+      for (let c = 1; c < COLS - 1; c++) {
+        if (!this.isSolidTile(this.grid[r][c])) {
+          candidates.push({ c, r });
+        }
+      }
+    }
+    if (candidates.length === 0) return { c: 6, r: 5 };
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+
+  triggerMapEvent() {
+    const tr = TRANSLATIONS[this.lang] || TRANSLATIONS.en;
+    const eventType = this.mapConfig?.eventType || 'kaiten';
+    this.sound?.playEventBell();
+
+    if (eventType === 'stampede') {
+      this.showBanner(tr.eventStampede, 3.2);
+      [0.05, 1.85, 3.65, 5.45].forEach((delay) => {
+        this.eventWaveQueue.push({ delay, kind: 'smash', style: 'dino' });
+      });
+    } else if (eventType === 'owl_swoop') {
+      this.showBanner(tr.eventOwlSwoop, 3.2);
+      [0.05, 3.6].forEach((delay) => {
+        this.eventWaveQueue.push({ delay, kind: 'swoop', axis: 'row', index: 3, dir: 1, style: 'owl' });
+        this.eventWaveQueue.push({ delay: delay + 0.12, kind: 'swoop', axis: 'row', index: 7, dir: -1, style: 'owl' });
+      });
+    } else if (eventType === 'meteor_shower') {
+      this.kaitenTimer = 10;
+      this.showBanner(tr.eventMeteorShower, 3.2);
+      [0.6, 3.0, 5.4].forEach((delay) => {
+        this.eventWaveQueue.push({ delay, kind: 'smash', style: 'meteor' });
+      });
+    } else {
+      this.kaitenTimer = KAITEN_DURATION;
+      this.showBanner(tr.eventKaiten, 3.2);
+    }
+  }
+
+  updateEventWaveQueue(dt) {
+    for (let i = this.eventWaveQueue.length - 1; i >= 0; i--) {
+      const ev = this.eventWaveQueue[i];
+      ev.delay -= dt;
+      if (ev.delay > 0) continue;
+      this.eventWaveQueue.splice(i, 1);
+      if (this.roundResolveTimer >= 0) continue;
+
+      if (ev.kind === 'smash') {
+        const tile = this._pickRandomOpenTile();
+        this.spawnFloorSmashAt(tile.c, tile.r, null, null, ev.style || 'dino', 0.95);
+      } else if (ev.kind === 'swoop') {
+        this.spawnLaneSwoop(ev.axis, ev.index, ev.dir, null, null, ev.style || 'owl', 0.95);
+      }
     }
   }
 
@@ -1345,7 +1812,8 @@ export class GameEngine {
       this.addPopup(bomb.x, bomb.y - 24, 'FLAVOR COMBO! ✨', '#f43f5e');
       this.spawnConfetti(bomb.x, bomb.y, ['#fb7185', '#fbbf24', '#38bdf8', '#a78bfa'], 18);
       if (Math.random() < 0.85 && !this.powerups.some((pu) => pu.c === bomb.c && pu.r === bomb.r)) {
-        const randType = POWERUP_KEYS[Math.floor(Math.random() * POWERUP_KEYS.length)];
+        const pool = this.mapConfig?.powerPool || POWERUP_KEYS;
+        const randType = pool[Math.floor(Math.random() * pool.length)];
         this.powerups.push({ c: bomb.c, r: bomb.r, type: randType, bobPhase: 0 });
       }
     }
@@ -1671,7 +2139,8 @@ export class GameEngine {
     this.spawnConfetti((c + 0.5) * TILE, (r + 0.5) * TILE, ['#fde68a', '#fbcfe8', '#fed7aa'], 9);
 
     if (Math.random() < 0.38) {
-      const randType = POWERUP_KEYS[Math.floor(Math.random() * POWERUP_KEYS.length)];
+      const pool = this.mapConfig?.powerPool || POWERUP_KEYS;
+      const randType = pool[Math.floor(Math.random() * pool.length)];
       this.powerups.push({ c, r, type: randType, bobPhase: Math.random() * Math.PI * 2 });
     }
   }

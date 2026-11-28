@@ -325,6 +325,51 @@ export class SoundEngine {
     this.tone(1046, 1046, 0.25, 'sine', 0.11, 0.11);
   }
 
+  playSmashTelegraph() {
+    this.tone(420, 140, 0.25, 'triangle', 0.11, 0);
+  }
+
+  playFloorSmash() {
+    this.tone(140, 38, 0.28, 'sawtooth', 0.18, 0);
+    this.tone(110, 42, 0.26, 'triangle', 0.16, 0.02);
+    const ctx = this.ensureContext();
+    if (ctx) {
+      const src = ctx.createBufferSource();
+      src.buffer = this._getNoiseBuffer(ctx);
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(640, ctx.currentTime);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      src.start(ctx.currentTime);
+      src.stop(ctx.currentTime + 0.22);
+    }
+  }
+
+  playSpikeWarn() {
+    this.tone(620, 780, 0.09, 'triangle', 0.1, 0);
+  }
+
+  playSpikeErupt() {
+    this.tone(260, 880, 0.14, 'sawtooth', 0.13, 0);
+    this.tone(420, 720, 0.1, 'triangle', 0.09, 0.03);
+  }
+
+  playSwoop(style = 'owl') {
+    if (style === 'ufo') {
+      this.tone(760, 440, 0.14, 'sine', 0.11, 0);
+      this.tone(440, 920, 0.18, 'sine', 0.11, 0.12);
+    } else {
+      this.tone(540, 380, 0.14, 'sine', 0.12, 0);
+      this.tone(440, 310, 0.18, 'triangle', 0.1, 0.11);
+    }
+  }
+
   playWin() {
     const notes = [523.25, 659.25, 783.99, 1046.5];
     notes.forEach((n, idx) => {

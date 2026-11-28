@@ -42,6 +42,25 @@ export function buildDangerSet(game, ignoreOwnerId = null) {
     }
   }
 
+  for (const sm of game.floorSmashes || []) {
+    if (ignoreOwnerId !== null && sm.ownerId === ignoreOwnerId) continue;
+    for (const cell of sm.cells) {
+      mark(cell.c, cell.r);
+    }
+  }
+
+  for (const sp of game.spikeTraps || []) {
+    if (ignoreOwnerId !== null && sp.ownerId === ignoreOwnerId) continue;
+    mark(sp.c, sp.r);
+  }
+
+  for (const sw of game.laneSwoops || []) {
+    if (ignoreOwnerId !== null && sw.ownerId === ignoreOwnerId) continue;
+    for (const cell of sw.cells) {
+      mark(cell.c, cell.r);
+    }
+  }
+
   for (const pearl of game.bobaPearls) {
     if (ignoreOwnerId !== null && pearl.ownerId === ignoreOwnerId) continue;
     const pc = Math.floor(pearl.x / TILE);
